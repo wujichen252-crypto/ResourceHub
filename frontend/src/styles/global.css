@@ -1,0 +1,54 @@
+/* ========================================
+   ResourceHub — Global Base Styles
+   ======================================== */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html, body, #app {
+  height: 100%;
+}
+
+body {
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    'Noto Sans SC',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  background-color: var(--rh-bg);
+  color: var(--rh-text-primary);
+  line-height: 1.6;
+}
+
+a {
+  color: var(--rh-primary);
+  text-decoration: none;
+  transition: var(--rh-transition);
+}
+
+a:hover {
+  color: var(--rh-primary-light);
+}
+
+::selection {
+  background: var(--rh-primary-lighter);
+  color: var(--rh-primary-dark);
+}

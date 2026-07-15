@@ -1,0 +1,192 @@
+/* ========================================
+   ResourceHub — Clean Pro Theme
+   Brand: Indigo (#4f46e5)
+   ======================================== */
+
+:root {
+  /* ── Brand Colors ── */
+  --rh-primary: #4f46e5;
+  --rh-primary-light: #6366f1;
+  --rh-primary-lighter: #e0e7ff;
+  --rh-primary-dark: #4338ca;
+
+  /* ── Neutral Palette ── */
+  --rh-bg: #fafaf9;
+  --rh-bg-card: #ffffff;
+  --rh-bg-subtle: #f5f5f4;
+  --rh-bg-hover: #f0efed;
+
+  --rh-text-primary: #1c1917;
+  --rh-text-secondary: #57534e;
+  --rh-text-tertiary: #a8a29e;
+  --rh-text-placeholder: #d6d3d1;
+
+  --rh-border: #e7e5e4;
+  --rh-border-light: #f0efed;
+
+  /* ── Shadows ── */
+  --rh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --rh-shadow-md: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --rh-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --rh-shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.1);
+
+  /* ── Radius ── */
+  --rh-radius-sm: 8px;
+  --rh-radius-md: 12px;
+  --rh-radius-lg: 16px;
+
+  /* ── Transitions ── */
+  --rh-transition: all 0.2s ease;
+
+  /* ── Element Plus Overrides ── */
+  --el-color-primary: #4f46e5;
+  --el-color-primary-light-3: #818cf8;
+  --el-color-primary-light-5: #a5b4fc;
+  --el-color-primary-light-7: #c7d2fe;
+  --el-color-primary-light-8: #e0e7ff;
+  --el-color-primary-light-9: #eef2ff;
+  --el-color-primary-dark-2: #4338ca;
+
+  --el-color-success: #10b981;
+  --el-color-warning: #f59e0b;
+  --el-color-danger: #ef4444;
+  --el-color-info: #a8a29e;
+
+  --el-bg-color: #ffffff;
+  --el-bg-color-overlay: #ffffff;
+  --el-bg-color-page: #fafaf9;
+  --el-text-color-primary: #1c1917;
+  --el-text-color-regular: #57534e;
+  --el-text-color-secondary: #a8a29e;
+  --el-text-color-placeholder: #d6d3d1;
+  --el-border-color: #e7e5e4;
+  --el-border-color-light: #f0efed;
+  --el-border-color-lighter: #f5f5f4;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-fill-color: #f5f5f4;
+  --el-fill-color-light: #fafaf9;
+  --el-fill-color-lighter: #fcfcfb;
+
+  --el-card-border-color: transparent;
+  --el-card-border-radius: 12px;
+  --el-card-padding: 20px;
+
+  --el-menu-item-height: 56px;
+  --el-menu-sub-item-height: 40px;
+
+  --el-font-size-base: 14px;
+  --el-font-size-small: 13px;
+  --el-font-size-extra-small: 12px;
+  --el-font-size-medium: 16px;
+  --el-font-size-large: 18px;
+  --el-font-weight-primary: 500;
+}
+
+/* ── Element Plus Component Tweaks ── */
+
+.el-card {
+  border: none !important;
+  box-shadow: var(--rh-shadow-md) !important;
+  transition: var(--rh-transition) !important;
+}
+
+.el-card:hover {
+  box-shadow: var(--rh-shadow-lg) !important;
+}
+
+.el-button {
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  transition: var(--rh-transition) !important;
+}
+
+.el-button--primary {
+  --el-button-bg-color: #4f46e5;
+  --el-button-border-color: #4f46e5;
+  --el-button-hover-bg-color: #6366f1;
+  --el-button-hover-border-color: #6366f1;
+  --el-button-active-bg-color: #4338ca;
+  --el-button-active-border-color: #4338ca;
+}
+
+.el-button--primary.is-link,
+.el-button--primary.is-text {
+  --el-button-text-color: #4f46e5;
+  --el-button-hover-text-color: #6366f1;
+}
+
+.el-tag {
+  border: none !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+}
+
+.el-tag--primary {
+  --el-tag-bg-color: #eef2ff;
+  --el-tag-text-color: #4f46e5;
+}
+
+.el-tag--info {
+  --el-tag-bg-color: #f5f5f4;
+  --el-tag-text-color: #57534e;
+}
+
+.el-tag--warning {
+  --el-tag-bg-color: #fffbeb;
+  --el-tag-text-color: #d97706;
+}
+
+.el-input__wrapper {
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+  transition: var(--rh-transition) !important;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px #d4d4d4 inset !important;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 2px var(--el-color-primary) inset !important;
+}
+
+.el-select .el-input__wrapper {
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+}
+
+.el-switch.is-checked .el-switch__core {
+  border-color: #4f46e5;
+  background-color: #4f46e5;
+}
+
+.el-pagination button:hover {
+  color: #4f46e5;
+}
+
+.el-pagination.is-backtop .el-pager li.is-active {
+  color: #4f46e5;
+}
+
+.el-menu--horizontal {
+  border-bottom: none !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a29e;
+}
