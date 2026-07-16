@@ -5,9 +5,9 @@
     class="navbar"
     @select="handleSelect"
   >
-    <el-menu-item class="logo-item" disabled>
+    <div class="logo-item">
       <span class="logo-text">📚 ResourceHub</span>
-    </el-menu-item>
+    </div>
 
     <el-menu-item index="/dashboard">
       <el-icon><Monitor /></el-icon>

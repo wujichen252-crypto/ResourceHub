@@ -58,7 +58,7 @@
           </template>
           <div v-loading="notesLoading" class="list-container">
             <div v-for="note in recentNotes" :key="note.id" class="list-item">
-              <router-link :to="`/notes/${note.id}`" class="list-link">
+              <router-link to="/notes" class="list-link">
                 {{ note.title }}
               </router-link>
               <span class="list-time">{{ formatTime(note.updated_at) }}</span>
