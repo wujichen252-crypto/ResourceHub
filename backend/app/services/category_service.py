@@ -1,8 +1,10 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete as sqla_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
 from app.models.category import Category
+from app.models.note import Note
+from app.models.prompt import Prompt
 from app.schemas.category import CategoryCreate, CategoryUpdate
 
 
@@ -70,9 +72,35 @@ class CategoryService:
         await db.refresh(category)
         return category
 
+    async def _delete_category_and_children(
+        self, db: AsyncSession, user_id: int, category_id: int, type: str
+    ) -> None:
+        """递归删除目录及其所有子目录与内容"""
+        table = Note if type == "note" else Prompt
+
+        # 先删子目录（递归）
+        child_result = await db.execute(
+            select(Category).where(
+                Category.parent_id == category_id, Category.user_id == user_id
+            )
+        )
+        children = child_result.scalars().all()
+        for child in children:
+            await self._delete_category_and_children(db, user_id, child.id, type)
+
+        # 删本目录下的笔记/提示词
+        await db.execute(
+            sqla_delete(table).where(table.category_id == category_id, table.user_id == user_id)
+        )
+        # 删本目录
+        await db.execute(
+            sqla_delete(Category).where(Category.id == category_id, Category.user_id == user_id)
+        )
+
     async def delete_category(
         self, db: AsyncSession, category_id: int, user_id: int
     ) -> None:
+        # 检查是否存在
         result = await db.execute(
             select(Category).where(
                 Category.id == category_id, Category.user_id == user_id
@@ -83,5 +111,5 @@ class CategoryService:
             raise HTTPException(
                 status_code=404, detail={"code": 404, "message": "分类不存在"}
             )
-        await db.delete(category)
+        await self._delete_category_and_children(db, user_id, category_id, category.type)
         await db.commit()

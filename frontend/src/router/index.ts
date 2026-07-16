@@ -22,25 +22,28 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/notes',
     name: 'Notes',
-    component: () => import('../views/Notes/NoteList.vue'),
+    component: () => import('../views/Notes/NotesPage.vue'),
     meta: { requiresAuth: true },
   },
+  // 旧路由向后兼容重定向
   {
     path: '/notes/:id',
-    name: 'NoteDetail',
-    component: () => import('../views/Notes/NoteDetail.vue'),
-    meta: { requiresAuth: true },
+    redirect: '/notes',
   },
   {
     path: '/notes/:id/edit',
-    name: 'NoteEditor',
-    component: () => import('../views/Notes/NoteEditor.vue'),
-    meta: { requiresAuth: true },
+    redirect: '/notes',
   },
   {
     path: '/prompts',
     name: 'Prompts',
     component: () => import('../views/Prompts/PromptList.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/prompts/new',
+    name: 'NewPrompt',
+    component: () => import('../views/Prompts/PromptEditor.vue'),
     meta: { requiresAuth: true },
   },
   {

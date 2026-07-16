@@ -1,4 +1,5 @@
 import json
+import re
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,9 +14,15 @@ router = APIRouter(tags=["笔记"])
 service = NoteService()
 
 
+def _strip_html(text: str) -> str:
+    """去除 HTML 标签，用于生成纯文本预览"""
+    return re.sub(r"<[^>]+>", "", text)
+
+
 def _format_note_list(note, category_name: str | None = None) -> dict:
     tags = json.loads(note.tags) if note.tags else []
-    content_preview = (note.content or "")[:200].replace("\n", " ")
+    raw = note.content or ""
+    content_preview = _strip_html(raw)[:200].replace("\n", " ")
     return {
         "id": note.id,
         "title": note.title,

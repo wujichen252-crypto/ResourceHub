@@ -9,6 +9,25 @@ from app.schemas.note import NoteCreate, NoteUpdate
 
 
 class NoteService:
+    async def _get_category_subtree_ids(
+        self, db: AsyncSession, user_id: int, category_id: int
+    ) -> list[int]:
+        """递归获取分类及其所有子分类的 ID 列表（用于语雀式目录树查询）"""
+        result = await db.execute(
+            select(Category).where(Category.user_id == user_id, Category.type == "note")
+        )
+        all_cats = result.scalars().all()
+        ids: list[int] = [category_id]
+
+        def collect(parent_id: int) -> None:
+            for cat in all_cats:
+                if cat.parent_id == parent_id:
+                    ids.append(cat.id)
+                    collect(cat.id)
+
+        collect(category_id)
+        return ids
+
     async def get_notes(
         self, db: AsyncSession, user_id: int,
         page: int = 1, page_size: int = 20,

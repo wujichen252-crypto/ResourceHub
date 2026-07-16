@@ -35,7 +35,6 @@ export const useNotesStore = defineStore('notes', () => {
 
   async function createNote(data: NoteCreate) {
     const note = await notesApi.create(data)
-    await fetchNotes()
     return note
   }
 
@@ -44,7 +43,6 @@ export const useNotesStore = defineStore('notes', () => {
     if (currentNote.value?.id === id) {
       currentNote.value = note
     }
-    await fetchNotes()
     return note
   }
 
@@ -53,7 +51,6 @@ export const useNotesStore = defineStore('notes', () => {
     if (currentNote.value?.id === id) {
       currentNote.value = null
     }
-    await fetchNotes()
   }
 
   async function togglePin(id: number) {
