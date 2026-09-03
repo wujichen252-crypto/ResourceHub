@@ -22,7 +22,7 @@ export const useNotesStore = defineStore('notes', () => {
         search: searchQuery.value || undefined,
         category_id: selectedCategoryId.value ?? undefined,
       })
-      notes.value = result.data
+      notes.value = result.items
       total.value = result.total
     } finally {
       loading.value = false

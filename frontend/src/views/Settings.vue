@@ -20,6 +20,34 @@
 
     <el-card shadow="never" class="settings-card">
       <template #header>
+        <span>修改密码</span>
+      </template>
+      <el-form
+        ref="passwordFormRef"
+        :model="passwordForm"
+        :rules="passwordRules"
+        label-position="top"
+        class="password-form"
+      >
+        <el-form-item label="原密码" prop="oldPassword">
+          <el-input v-model="passwordForm.oldPassword" type="password" show-password placeholder="请输入当前密码" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="至少 8 位" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="changingPassword" @click="handleChangePassword">
+            修改密码
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card shadow="never" class="settings-card">
+      <template #header>
         <span>数据导出</span>
       </template>
       <p class="settings-desc">将您的数据导出为 JSON 或 Markdown 格式，便于备份和迁移。</p>
@@ -50,14 +78,64 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import { Download } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
+import { authApi } from '../api/auth'
 import http from '../api/http'
 
 const authStore = useAuthStore()
 const exporting = ref(false)
+const changingPassword = ref(false)
+const passwordFormRef = ref<FormInstance>()
+
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+const validateConfirm = (_rule: any, value: string, callback: Function) => {
+  if (value !== passwordForm.newPassword) {
+    callback(new Error('两次输入的密码不一致'))
+  } else {
+    callback()
+  }
+}
+
+const passwordRules: FormRules = {
+  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 8, message: '密码长度至少 8 位', trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    { validator: validateConfirm, trigger: 'blur' },
+  ],
+}
+
+async function handleChangePassword() {
+  const valid = await passwordFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  changingPassword.value = true
+  try {
+    await authApi.changePassword({
+      old_password: passwordForm.oldPassword,
+      new_password: passwordForm.newPassword,
+    })
+    ElMessage.success('密码修改成功')
+    passwordForm.oldPassword = ''
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
+  } catch (err: any) {
+    ElMessage.error(err.response?.data?.msg || '密码修改失败')
+  } finally {
+    changingPassword.value = false
+  }
+}
 
 async function exportNotes(format: 'json' | 'markdown') {
   exporting.value = true
@@ -117,7 +195,7 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 
 <style scoped>
 .settings-page {
-  padding: 32px;
+  padding: 28px 32px;
   max-width: 800px;
   margin: 0 auto;
 }
@@ -140,12 +218,12 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 }
 
 .settings-card {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .settings-card :deep(.el-card__header) {
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--rh-border-light);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rh-border-faint);
   font-weight: 600;
   font-size: 15px;
   color: var(--rh-text-primary);

@@ -4,13 +4,18 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "jsx": "preserve",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "noUnusedLocals": false,
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
@@ -19,5 +24,6 @@
     "types": ["vite/client"]
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "env.d.ts"],
+  "exclude": ["src/views/Notes/_archive/**"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

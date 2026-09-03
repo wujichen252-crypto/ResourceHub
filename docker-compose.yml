@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resourcehub-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - DEBUG=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/resourcehub.db
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=120
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - CORS_ORIGINS=["http://localhost","http://localhost:80","http://${SERVER_IP}:80","https://${DOMAIN}"]
+    volumes:
+      - backend-data:/app/data
+    networks:
+      - resourcehub-network
+    healthcheck:
+      test: ["CMD", "uv", "run", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resourcehub-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - resourcehub-network
+
+volumes:
+  backend-data:
+
+networks:
+  resourcehub-network:
+    driver: bridge

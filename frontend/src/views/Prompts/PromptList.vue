@@ -1,103 +1,135 @@
 <template>
   <div class="prompt-list-page">
-    <div class="page-header">
-      <div class="page-heading">
-        <h1 class="page-title">提示词库</h1>
-        <p class="page-desc">管理和复用你的 AI 提示词模板</p>
+    <!-- Page Header -->
+    <Transition name="fade-slide" appear>
+      <div class="page-header animate-fade-in-up">
+        <div class="page-heading">
+          <h1 class="page-title">提示词库</h1>
+        </div>
+        <el-button-group>
+          <el-button @click="showAnalytics = true">
+            <el-icon><DataAnalysis /></el-icon> 用量分析
+          </el-button>
+          <el-button type="primary" @click="createPrompt">
+            <el-icon><Plus /></el-icon> 新建提示词
+          </el-button>
+        </el-button-group>
       </div>
-      <el-button type="primary" @click="createPrompt">
-        <el-icon><Plus /></el-icon> 新建提示词
-      </el-button>
-    </div>
+    </Transition>
 
-    <!-- Filters -->
-    <el-card shadow="never" class="filter-card">
-      <el-row :gutter="12" align="middle">
-        <el-col :xs="24" :sm="8">
-          <el-input
-            v-model="searchText"
-            placeholder="搜索提示词..."
-            :prefix-icon="Search"
-            clearable
-            @input="handleSearch"
-          />
-        </el-col>
-        <el-col :xs="12" :sm="6">
-          <el-select
-            v-model="selectedCategory"
-            placeholder="全部分类"
-            clearable
-            class="w-full"
-            @change="handleCategoryChange"
-          >
-            <el-option label="全部分类" :value="null" />
-            <el-option
-              v-for="cat in flatCategories"
-              :key="cat.id"
-              :label="cat.name"
-              :value="cat.id"
+    <!-- Filter Bar — no card container, just a clean row -->
+    <Transition name="fade-slide" appear>
+      <div class="filter-bar animate-fade-in-up stagger-1">
+        <div class="filter-row">
+          <div class="filter-section search-section">
+            <el-input
+              v-model="searchText"
+              placeholder="搜索提示词..."
+              :prefix-icon="Search"
+              clearable
+              @input="handleSearch"
+              class="filter-input"
             />
-          </el-select>
-        </el-col>
-        <el-col :xs="12" :sm="4">
-          <el-switch
-            v-model="promptsStore.showFavoritesOnly"
-            active-text="仅收藏"
-            @change="handleFavoritesChange"
-          />
-        </el-col>
-        <el-col :xs="24" :sm="6" class="stat-text">
-          共 {{ promptsStore.total }} 个提示词
-        </el-col>
-      </el-row>
-    </el-card>
+          </div>
 
-    <!-- Prompt Grid -->
-    <div v-loading="promptsStore.loading" class="prompt-grid">
-      <el-row :gutter="16">
-        <el-col
-          v-for="prompt in promptsStore.prompts"
-          :key="prompt.id"
-          :xs="24" :sm="12" :md="8" :lg="6"
-          class="prompt-col"
-        >
-          <el-card shadow="hover" class="prompt-card" @click="goToPrompt(prompt.id)">
-            <div class="prompt-card-header">
-              <h3 class="prompt-card-title">{{ prompt.title }}</h3>
-              <el-icon
-                class="fav-icon"
-                :class="{ favorited: prompt.is_favorite }"
-                @click.stop="toggleFav(prompt)"
-              >
-                <StarFilled v-if="prompt.is_favorite" />
-                <Star v-else />
-              </el-icon>
-            </div>
-            <p class="prompt-card-desc">{{ prompt.description || '暂无描述' }}</p>
-            <div class="prompt-card-footer">
-              <el-tag v-if="prompt.category_name" size="small" type="info">
-                {{ prompt.category_name }}
-              </el-tag>
-              <span class="usage-badge">使用 {{ prompt.usage_count }} 次</span>
-            </div>
-            <div v-if="prompt.variables?.length" class="prompt-vars">
-              <el-tag
-                v-for="v in prompt.variables"
-                :key="v"
-                size="small"
-                type="warning"
-                class="var-tag"
-              ><span v-text="'{{' + v + '}}'"></span></el-tag>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+          <div class="filter-section filter-col">
+            <el-select
+              v-model="selectedCategory"
+              placeholder="分类"
+              clearable
+              class="filter-select"
+              @change="handleCategoryChange"
+            >
+              <el-option label="全部分类" :value="null" />
+              <el-option
+                v-for="cat in flatCategories"
+                :key="cat.id"
+                :label="cat.name"
+                :value="cat.id"
+              />
+            </el-select>
+            <el-button link size="small" @click="showNewCategoryDialog = true">
+              <el-icon><Plus /></el-icon>
+            </el-button>
+          </div>
 
-      <div v-if="promptsStore.prompts.length === 0 && !promptsStore.loading" class="empty-state">
+          <div class="filter-section filter-col">
+            <el-select
+              v-model="selectedTag"
+              placeholder="标签"
+              clearable
+              class="filter-select"
+              @change="handleTagChange"
+            >
+              <el-option label="全部标签" :value="null" />
+              <el-option
+                v-for="tag in allTags"
+                :key="tag"
+                :label="tag"
+                :value="tag"
+              />
+            </el-select>
+          </div>
+
+          <div class="filter-section filter-col">
+            <el-switch
+              v-model="promptsStore.showFavoritesOnly"
+              active-text="仅收藏"
+              @change="handleFavoritesChange"
+            />
+          </div>
+
+          <div class="filter-section count-section">
+            {{ promptsStore.total }} 个
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Prompt Grid with Staggered Entrance -->
+    <TransitionGroup name="stagger-grid" tag="div" v-loading="promptsStore.loading" class="prompt-grid">
+      <div v-for="(prompt, idx) in promptsStore.prompts" :key="prompt.id" :class="'prompt-col stagger-' + idx">
+        <el-col :xs="24" :sm="12" :md="8" :lg="6">
+        <el-card shadow="never" class="prompt-card" @click="goToPrompt(prompt.id)">
+          <div class="prompt-card-header">
+            <h3 class="prompt-card-title">{{ prompt.title }}</h3>
+            <el-icon
+              class="fav-icon"
+              :class="{ favorited: prompt.is_favorite }"
+              @click.stop="toggleFav(prompt)"
+            >
+              <StarFilled v-if="prompt.is_favorite" />
+              <Star v-else />
+            </el-icon>
+          </div>
+          <p class="prompt-card-desc">{{ prompt.description || '暂无描述' }}</p>
+          <div class="prompt-card-footer">
+            <el-tag v-if="prompt.category_name" size="small" type="info">
+              {{ prompt.category_name }}
+            </el-tag>
+            <span class="usage-badge">使用 {{ prompt.usage_count }} 次</span>
+          </div>
+          <div class="prompt-vars" v-if="prompt.variables?.length">
+            <el-tag
+              v-for="v in prompt.variables"
+              :key="v"
+              size="small"
+              type="warning"
+              class="var-tag"
+            >{{ v }}</el-tag>
+          </div>
+        </el-card>
+        </el-col>
+        </div>
+      </TransitionGroup>
+
+    <!-- Empty State -->
+    <Transition name="fade" appear>
+      <div v-if="!promptsStore.loading && promptsStore.prompts.length === 0" class="empty-state">
         <p>还没有提示词</p>
         <el-button type="primary" @click="createPrompt">创建第一个提示词</el-button>
       </div>
-    </div>
+    </Transition>
 
     <!-- Pagination -->
     <div v-if="promptsStore.total > promptsStore.pageSize" class="pagination-wrapper">
@@ -110,16 +142,34 @@
       />
     </div>
   </div>
+
+  <!-- Usage Analytics Dialog -->
+  <UsageAnalyticsPanel v-model="showAnalytics" />
+
+  <!-- New Category Dialog -->
+  <Transition name="scaleIn" appear>
+    <el-dialog v-model="showNewCategoryDialog" title="新建分类" width="360px" :close-on-click-modal="false">
+      <el-form label-position="top" @keyup.enter="handleCreateCategory">
+        <el-form-item label="分类名称">
+          <el-input v-model="newCategoryName" placeholder="请输入分类名称" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="creatingCategory" @click="handleCreateCategory">创建</el-button>
+        </el-form-item>
+      </el-form>
+    </el-dialog>
+  </Transition>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, Star, StarFilled } from '@element-plus/icons-vue'
+import { Plus, Search, Star, StarFilled, DataAnalysis } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { usePromptsStore } from '../../stores/prompts'
 import { useCategoriesStore } from '../../stores/categories'
 import type { Prompt } from '../../api/prompts'
+import UsageAnalyticsPanel from '../../components/prompts/UsageAnalyticsPanel.vue'
 
 const router = useRouter()
 const promptsStore = usePromptsStore()
@@ -127,7 +177,20 @@ const categoriesStore = useCategoriesStore()
 
 const searchText = ref('')
 const selectedCategory = ref<number | null>(null)
+const selectedTag = ref<string | null>(null)
+const showAnalytics = ref(false)
+const showNewCategoryDialog = ref(false)
+const newCategoryName = ref('')
+const creatingCategory = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+const allTags = computed(() => {
+  const tagSet = new Set<string>()
+  for (const p of promptsStore.prompts) {
+    for (const t of p.tags || []) tagSet.add(t)
+  }
+  return [...tagSet].sort()
+})
 
 const flatCategories = computed(() => {
   const flatten = (items: any[]): any[] => {
@@ -157,6 +220,11 @@ function handleCategoryChange(val: number | null) {
   promptsStore.setCategory(val)
 }
 
+function handleTagChange(val: string | null) {
+  selectedTag.value = val
+  promptsStore.setTag(val)
+}
+
 function handleFavoritesChange() {
   promptsStore.toggleFavoritesOnly()
 }
@@ -180,20 +248,44 @@ async function toggleFav(prompt: Prompt) {
     ElMessage.error('操作失败')
   }
 }
+
+async function handleCreateCategory() {
+  if (!newCategoryName.value.trim()) {
+    ElMessage.warning('请输入分类名称')
+    return
+  }
+  creatingCategory.value = true
+  try {
+    await categoriesStore.createCategory({
+      name: newCategoryName.value.trim(),
+      type: 'prompt',
+    })
+    ElMessage.success('分类创建成功')
+    showNewCategoryDialog.value = false
+    newCategoryName.value = ''
+    await categoriesStore.fetchCategories('prompt')
+  } catch (err: any) {
+    ElMessage.error(err.response?.data?.detail?.message || '创建失败')
+  } finally {
+    creatingCategory.value = false
+  }
+}
 </script>
 
 <style scoped>
 .prompt-list-page {
-  padding: 32px;
+  padding: 28px 32px;
   max-width: 1400px;
   margin: 0 auto;
 }
+
+/* ── Page Header ── */
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .page-heading {
@@ -204,42 +296,60 @@ async function toggleFav(prompt: Prompt) {
   font-size: 26px;
   font-weight: 700;
   color: var(--rh-text-primary);
-  margin: 0 0 4px;
-}
-
-.page-desc {
-  font-size: 14px;
-  color: var(--rh-text-tertiary);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 /* ── Filter Bar ── */
-.filter-card {
-  margin-bottom: 24px;
+
+.filter-bar {
+  margin-bottom: 20px;
 }
 
-.filter-card :deep(.el-card__body) {
-  padding: 16px 20px;
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--rh-bg-card);
+  border: 1px solid var(--rh-border);
+  border-radius: var(--rh-radius-sm);
+  transition: border-color var(--rh-duration-normal) var(--rh-transition-normal);
 }
 
-.w-full {
-  width: 100%;
+.filter-section {
+  display: flex;
+  align-items: center;
 }
 
-.stat-text {
+.search-section {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.filter-col {
+  flex: 0 0 auto;
+}
+
+.count-section {
   font-size: 13px;
   color: var(--rh-text-tertiary);
-  line-height: 32px;
-  text-align: right;
+  white-space: nowrap;
+}
+
+.filter-select {
+  width: 120px;
 }
 
 /* ── Prompt Grid ── */
+
 .prompt-grid {
   min-height: 40vh;
 }
 
 .prompt-col {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .prompt-card {
@@ -247,22 +357,25 @@ async function toggleFav(prompt: Prompt) {
   height: 100%;
   display: flex;
   flex-direction: column;
+  transition: border-color var(--rh-duration-normal) var(--rh-transition-normal),
+              transform var(--rh-duration-normal) var(--rh-transition-spring);
 }
 
 .prompt-card:hover {
-  transform: translateY(-3px);
+  border-color: var(--rh-primary-muted);
+  transform: scale(1.015);
 }
 
 .prompt-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   gap: 8px;
 }
 
 .prompt-card-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--rh-text-primary);
   margin: 0;
@@ -278,11 +391,13 @@ async function toggleFav(prompt: Prompt) {
   color: var(--rh-text-tertiary);
   cursor: pointer;
   flex-shrink: 0;
-  transition: var(--rh-transition);
+  transition: color var(--rh-duration-fast) var(--rh-transition-fast),
+              transform var(--rh-duration-normal) var(--rh-transition-spring);
 }
 
 .fav-icon:hover {
-  transform: scale(1.15);
+  color: #eab308;
+  transform: scale(1.2);
 }
 
 .fav-icon.favorited {
@@ -292,14 +407,14 @@ async function toggleFav(prompt: Prompt) {
 .prompt-card-desc {
   font-size: 13px;
   color: var(--rh-text-secondary);
-  line-height: 1.6;
-  margin-bottom: 16px;
+  line-height: 1.5;
+  margin-bottom: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
-  min-height: 41px;
+  min-height: 20px;
   flex: 1;
 }
 
@@ -307,7 +422,7 @@ async function toggleFav(prompt: Prompt) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .usage-badge {
@@ -326,7 +441,37 @@ async function toggleFav(prompt: Prompt) {
   font-size: 11px;
 }
 
+/* ── Transition Group Animations ── */
+
+.stagger-grid-enter-active {
+  animation: fadeInUp var(--rh-duration-slow) var(--rh-transition-normal) both;
+}
+
+.stagger-grid-leave-active {
+  animation: fadeIn var(--rh-duration-fast) var(--rh-transition-fast) both;
+}
+
+.stagger-grid-enter-active.stagger-0 { animation-delay: 0ms; }
+.stagger-grid-enter-active.stagger-1 { animation-delay: 40ms; }
+.stagger-grid-enter-active.stagger-2 { animation-delay: 80ms; }
+.stagger-grid-enter-active.stagger-3 { animation-delay: 120ms; }
+.stagger-grid-enter-active.stagger-4 { animation-delay: 160ms; }
+.stagger-grid-enter-active.stagger-5 { animation-delay: 200ms; }
+.stagger-grid-enter-active.stagger-6 { animation-delay: 240ms; }
+.stagger-grid-enter-active.stagger-7 { animation-delay: 280ms; }
+
+/* ── Fade Animation ── */
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity var(--rh-duration-normal) var(--rh-transition-normal);
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
 /* ── Empty State ── */
+
 .empty-state {
   text-align: center;
   padding: 80px 0;
@@ -339,11 +484,12 @@ async function toggleFav(prompt: Prompt) {
 }
 
 /* ── Pagination ── */
+
 .pagination-wrapper {
   display: flex;
   justify-content: center;
-  padding: 24px 0 8px;
-  border-top: 1px solid var(--rh-border-light);
+  padding: 20px 0 8px;
+  border-top: 1px solid var(--rh-border-faint);
   margin-top: 8px;
 }
 </style>

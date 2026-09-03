@@ -24,6 +24,17 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    username: str
+    email: str
+    new_password: str = Field(..., min_length=8)
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(..., min_length=8)
+
+
 class UserResponse(BaseModel):
     id: int
     username: str

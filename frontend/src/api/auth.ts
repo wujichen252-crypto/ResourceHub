@@ -27,18 +27,26 @@ export interface TokenResponse {
 
 export const authApi = {
   login(data: LoginRequest): Promise<TokenResponse> {
-    return http.post('/auth/login', data).then((res) => res.data.data)
+    return http.post('/auth/login', data)
   },
 
   register(data: RegisterRequest): Promise<User> {
-    return http.post('/auth/register', data).then((res) => res.data.data)
+    return http.post('/auth/register', data)
   },
 
   refresh(refreshToken: string): Promise<TokenResponse> {
-    return http.post('/auth/refresh', { refresh_token: refreshToken }).then((res) => res.data.data)
+    return http.post('/auth/refresh', { refresh_token: refreshToken })
   },
 
   me(): Promise<User> {
-    return http.get('/auth/me').then((res) => res.data.data)
+    return http.get('/auth/me')
+  },
+
+  forgotPassword(data: { username: string; email: string; new_password: string }): Promise<User> {
+    return http.post('/auth/forgot-password', data)
+  },
+
+  changePassword(data: { old_password: string; new_password: string }): Promise<void> {
+    return http.put('/auth/change-password', data)
   },
 }

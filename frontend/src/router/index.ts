@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { useAuthStore, isTokenExpired } from '../stores/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -71,17 +71,41 @@ const router = createRouter({
   routes,
 })
 
-// 导航守卫 — 未登录跳转到 /login
-router.beforeEach((to, _from, next) => {
+// 导航守卫 — 未登录或令牌过期跳转到 /login
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next({ name: 'Login', query: { redirect: to.fullPath } })
-  } else if (to.name === 'Login' && authStore.isAuthenticated) {
-    next({ name: 'Dashboard' })
-  } else {
+  if (to.meta.requiresAuth) {
+    // 无 access token → 未登录
+    if (!authStore.accessToken) {
+      next({ name: 'Login', query: { redirect: to.fullPath } })
+      return
+    }
+    // access token 过期 → 尝试用 refresh token 静默刷新；失败则回登录页
+    if (isTokenExpired(authStore.accessToken)) {
+      if (authStore.refreshToken && !isTokenExpired(authStore.refreshToken)) {
+        try {
+          await authStore.refreshTokenAction()
+          next()
+          return
+        } catch {
+          // 刷新失败，走登出逻辑
+        }
+      }
+      authStore.logout()
+      next({ name: 'Login', query: { redirect: to.fullPath } })
+      return
+    }
     next()
+    return
   }
+
+  if (to.name === 'Login' && authStore.isAuthenticated) {
+    next({ name: 'Dashboard' })
+    return
+  }
+
+  next()
 })
 
 export default router

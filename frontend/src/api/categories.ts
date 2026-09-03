@@ -24,15 +24,15 @@ export interface CategoryUpdate {
 
 export const categoriesApi = {
   list(type: 'note' | 'prompt'): Promise<CategoryTreeNode[]> {
-    return http.get('/categories', { params: { type } }).then((res) => res.data.data)
+    return http.get('/categories', { params: { type } })
   },
 
   create(data: CategoryCreate): Promise<any> {
-    return http.post('/categories', data).then((res) => res.data.data)
+    return http.post('/categories', data)
   },
 
   update(id: number, data: CategoryUpdate): Promise<any> {
-    return http.put(`/categories/${id}`, data).then((res) => res.data.data)
+    return http.put(`/categories/${id}`, data)
   },
 
   delete(id: number): Promise<void> {

@@ -33,22 +33,149 @@ body {
     'PingFang SC',
     'Microsoft YaHei',
     sans-serif;
-  background-color: var(--rh-bg);
+  background-color: var(--rh-bg-base);
   color: var(--rh-text-primary);
   line-height: 1.6;
+  transition: background-color var(--rh-duration-normal) var(--rh-transition-normal),
+              color var(--rh-duration-normal) var(--rh-transition-normal);
 }
 
 a {
   color: var(--rh-primary);
   text-decoration: none;
-  transition: var(--rh-transition);
+  transition: var(--rh-transition-all-normal);
 }
 
 a:hover {
-  color: var(--rh-primary-light);
+  color: var(--rh-primary-hover);
 }
 
 ::selection {
-  background: var(--rh-primary-lighter);
-  color: var(--rh-primary-dark);
+  background: var(--rh-primary-subtle);
+  color: var(--rh-primary-active);
+}
+
+/* ── Page Transition Classes ── */
+
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity var(--rh-duration-slow) var(--rh-transition-normal),
+              transform var(--rh-duration-slow) var(--rh-transition-normal);
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.fade-slide-reverse-enter-active,
+.fade-slide-reverse-leave-active {
+  transition: opacity var(--rh-duration-slow) var(--rh-transition-normal),
+              transform var(--rh-duration-slow) var(--rh-transition-normal);
+}
+
+.fade-slide-reverse-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.fade-slide-reverse-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* ── Animation Keyframes ── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 500px; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes countPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes focusRing {
+  0% { box-shadow: 0 0 0 0 var(--rh-primary-muted); }
+  50% { box-shadow: 0 0 0 4px var(--rh-primary-muted); }
+  100% { box-shadow: 0 0 0 0 var(--rh-primary-muted); }
+}
+
+/* ── Utility Animation Classes ── */
+
+.animate-fade-in-up {
+  animation: fadeInUp var(--rh-duration-slow) var(--rh-transition-normal) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--rh-duration-normal) var(--rh-transition-normal) both;
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--rh-duration-normal) var(--rh-transition-spring) both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg,
+    var(--rh-bg-inset) 25%,
+    var(--rh-bg-hover) 50%,
+    var(--rh-bg-inset) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ── Stagger Delays for TransitionGroup ── */
+
+.stagger-0 { animation-delay: 0ms; }
+.stagger-1 { animation-delay: 60ms; }
+.stagger-2 { animation-delay: 120ms; }
+.stagger-3 { animation-delay: 180ms; }
+.stagger-4 { animation-delay: 240ms; }
+.stagger-5 { animation-delay: 300ms; }
+
+/* ── Reduced Motion Preference ── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

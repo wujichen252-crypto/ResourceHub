@@ -28,7 +28,7 @@ export interface NoteUpdate {
 }
 
 export interface NoteListResponse {
-  data: Note[]
+  items: Note[]
   total: number
   page: number
   page_size: number
@@ -45,19 +45,19 @@ export interface NoteListParams {
 
 export const notesApi = {
   list(params?: NoteListParams): Promise<NoteListResponse> {
-    return http.get('/notes', { params }).then((res) => res.data)
+    return http.get('/notes', { params })
   },
 
   get(id: number): Promise<Note> {
-    return http.get(`/notes/${id}`).then((res) => res.data.data)
+    return http.get(`/notes/${id}`)
   },
 
   create(data: NoteCreate): Promise<Note> {
-    return http.post('/notes', data).then((res) => res.data.data)
+    return http.post('/notes', data)
   },
 
   update(id: number, data: NoteUpdate): Promise<Note> {
-    return http.put(`/notes/${id}`, data).then((res) => res.data.data)
+    return http.put(`/notes/${id}`, data)
   },
 
   delete(id: number): Promise<void> {
@@ -65,6 +65,6 @@ export const notesApi = {
   },
 
   togglePin(id: number): Promise<{ id: number; is_pinned: boolean }> {
-    return http.put(`/notes/${id}/pin`).then((res) => res.data.data)
+    return http.put(`/notes/${id}/pin`)
   },
 }

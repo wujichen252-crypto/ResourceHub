@@ -5,6 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ResourceHub - 资源整合中心</title>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- Preload Inter font for critical render path -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Prevent flash of wrong theme before Vue mounts -->
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('theme');
+          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = stored === 'dark' ? 'dark' : stored === 'light' ? 'light' : (systemDark ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

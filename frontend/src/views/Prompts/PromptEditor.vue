@@ -1,6 +1,7 @@
 <template>
-  <div class="prompt-editor-page">
-    <div class="editor-header">
+  <Transition name="fade-slide" appear>
+    <div class="prompt-editor-page animate-fade-in-up">
+      <div class="editor-header">
       <div class="editor-header-left">
         <el-button text @click="goBack">
           <el-icon><ArrowLeft /></el-icon> 返回
@@ -8,6 +9,13 @@
         <h1 class="editor-title">{{ isNew ? '新建提示词' : '编辑提示词' }}</h1>
       </div>
       <div class="editor-actions">
+        <el-input
+          v-model="commitMessage"
+          placeholder="简要说明本次修改..."
+          size="small"
+          class="commit-input"
+          clearable
+        />
         <el-button @click="goBack">取消</el-button>
         <el-button type="primary" @click="savePrompt" :loading="saving">
           <el-icon><Check /></el-icon> 保存
@@ -25,7 +33,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="分类">
-              <el-select v-model="form.category_id" placeholder="选择分类" clearable class="w-full">
+              <el-select v-model="form.category_id" placeholder="选择分类" filterable clearable class="w-full">
                 <el-option
                   v-for="cat in flatCategories"
                   :key="cat.id"
@@ -33,6 +41,7 @@
                   :value="cat.id"
                 />
               </el-select>
+              <span class="form-item-hint">分类需要先在提示词库左侧目录中创建</span>
             </el-form-item>
           </el-col>
         </el-row>
@@ -46,30 +55,56 @@
           />
         </el-form-item>
 
-        <el-form-item label="提示词内容" required>
-          <template #label>
-            <span>提示词内容 <el-tag size="small" type="warning">使用 <span v-text="'{{' + '变量名' + '}}'"></span> 添加占位符</el-tag></span>
-          </template>
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="15"
-            placeholder="请在此输入提示词模板...&#10;使用 {{变量名}} 语法添加可替换的变量占位符"
-            class="content-input"
-            @input="detectVariables"
-          />
+        <el-form-item label="标签">
+          <el-select
+            v-model="form.tags"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="输入后按回车创建"
+            no-data-text="输入文字后按回车创建新标签"
+            class="w-full"
+            @keyup.enter.prevent
+          >
+            <el-option
+              v-for="tag in existingTags"
+              :key="tag"
+              :label="tag"
+              :value="tag"
+            />
+          </el-select>
+          <span class="form-item-hint">输入任意文字后按回车即可创建新标签，也可以从已有标签中选择</span>
         </el-form-item>
 
-        <el-form-item label="检测到的变量">
+        <el-form-item label="提示词内容" required>
+          <template #label>
+            <span>提示词内容</span>
+          </template>
+          <div class="var-editor-wrap">
+            <div class="var-highlight" v-html="highlightedContent" />
+            <textarea
+              ref="contentInputRef"
+              :value="form.content"
+              class="var-textarea"
+              placeholder="请在此输入提示词模板..."
+              @input="handleTextareaInput"
+              @scroll="syncScroll"
+            />
+          </div>
+        </el-form-item>
+
+        <el-form-item label="检测到的变量（点击插入到光标位置）">
           <div class="detected-vars">
             <el-tag
               v-for="v in detectedVariables"
               :key="v"
               type="warning"
-              class="var-tag"
+              class="var-tag clickable"
               closable
+              @click="insertVariable(v)"
               @close="removeVariable(v)"
-            ><span v-text="'{{' + v + '}}'"></span></el-tag>
+            >{{ v }}</el-tag>
             <el-tag
               v-if="detectedVariables.length === 0"
               type="info"
@@ -79,12 +114,12 @@
           <div class="add-var-row">
             <el-input
               v-model="newVariable"
-              placeholder="添加变量名"
+              placeholder="输入变量名，添加到内容末尾"
               class="add-var-input"
               size="small"
-              @keyup.enter="addVariable"
+              @keyup.enter="addVariableFromInput"
             />
-            <el-button size="small" @click="addVariable">添加</el-button>
+            <el-button size="small" @click="addVariableFromInput">添加</el-button>
           </div>
         </el-form-item>
 
@@ -93,11 +128,13 @@
         </el-form-item>
       </el-form>
     </el-card>
-  </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check } from '@element-plus/icons-vue'
@@ -113,13 +150,81 @@ const isNew = computed(() => route.params.id === 'new' || !route.params.id)
 const saving = ref(false)
 const newVariable = ref('')
 const detectedVariables = ref<string[]>([])
+const commitMessage = ref('')
+const contentInputRef = ref<HTMLTextAreaElement>()
+
+const highlightedContent = computed(() => {
+  const text = form.content
+  if (!text) return '<br>'
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  // 保留花括号确保宽度对齐，花括号用浅色，变量名高亮
+  return escaped.replace(/\{\{([^}]+)\}\}/g, '<span class="hl-var"><span class="hl-brace">{{</span>$1<span class="hl-brace">}}</span></span>') + '\n'
+})
+
+function handleTextareaInput(e: Event) {
+  const target = e.target as HTMLTextAreaElement
+  form.content = target.value
+  detectVariables()
+}
+
+function syncScroll() {
+  const ta = contentInputRef.value
+  if (!ta) return
+  const hl = ta.previousElementSibling as HTMLElement
+  if (hl) hl.scrollTop = ta.scrollTop
+}
+
+function insertVariable(name: string) {
+  const ta = contentInputRef.value
+  const tag = name ? '{{' + name + '}}' : '{{}}'
+  if (ta) {
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    form.content = form.content.substring(0, start) + tag + form.content.substring(end)
+    nextTick(() => {
+      ta.focus()
+      const pos = start + tag.length
+      ta.setSelectionRange(pos, pos)
+      detectVariables()
+      // Trigger sync after content update
+      setTimeout(syncScroll, 0)
+    })
+  } else {
+    form.content += tag
+    detectVariables()
+  }
+}
+
+function addVariableFromInput() {
+  const v = newVariable.value.trim()
+  if (v && form.content.indexOf('{{' + v + '}}') === -1) {
+    form.content += '\n{{' + v + '}}'
+  }
+  if (v && !detectedVariables.value.includes(v)) {
+    detectedVariables.value.push(v)
+  }
+  newVariable.value = ''
+  detectVariables()
+}
 
 const form = reactive({
   title: '',
   description: '',
   content: '',
   category_id: null as number | null,
+  tags: [] as string[],
   is_favorite: false,
+})
+
+const existingTags = computed(() => {
+  const tagSet = new Set<string>()
+  for (const p of promptsStore.prompts) {
+    for (const t of p.tags || []) tagSet.add(t)
+  }
+  return [...tagSet].sort()
 })
 
 const flatCategories = computed(() => {
@@ -144,14 +249,6 @@ function detectVariables() {
   }
 }
 
-function addVariable() {
-  const v = newVariable.value.trim()
-  if (v && !detectedVariables.value.includes(v)) {
-    detectedVariables.value.push(v)
-  }
-  newVariable.value = ''
-}
-
 function removeVariable(v: string) {
   detectedVariables.value = detectedVariables.value.filter((item) => item !== v)
 }
@@ -166,8 +263,9 @@ onMounted(async () => {
       if (promptsStore.currentPrompt) {
         form.title = promptsStore.currentPrompt.title
         form.description = promptsStore.currentPrompt.description || ''
-        form.content = promptsStore.currentPrompt.content
+        form.content = promptsStore.currentPrompt.content || ''
         form.category_id = promptsStore.currentPrompt.category_id
+        form.tags = [...(promptsStore.currentPrompt.tags || [])]
         form.is_favorite = promptsStore.currentPrompt.is_favorite
         detectedVariables.value = [...(promptsStore.currentPrompt.variables || [])]
       }
@@ -200,7 +298,9 @@ async function savePrompt() {
       content: form.content,
       category_id: form.category_id,
       variables: detectedVariables.value,
+      tags: form.tags,
       is_favorite: form.is_favorite,
+      message: commitMessage.value || undefined,
     }
 
     if (isNew.value) {
@@ -221,8 +321,8 @@ async function savePrompt() {
 
 <style scoped>
 .prompt-editor-page {
-  padding: 32px;
-  max-width: 900px;
+  padding: 32px 40px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -257,10 +357,67 @@ async function savePrompt() {
   width: 100%;
 }
 
-.content-input :deep(textarea) {
+/* 让编辑器内容区占满宽度 */
+.var-editor-wrap {
+  width: 100%;
+}
+
+.var-textarea {
+  width: 100% !important;
+}
+
+.var-editor-wrap {
+  position: relative;
+  border: 1px solid var(--rh-border);
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 480px;
+}
+
+.var-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 20px;
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 14px;
   line-height: 1.7;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-y: auto;
+  pointer-events: none;
+  background: var(--el-fill-color, #fff);
+  color: var(--rh-text-primary);
+  z-index: 1;
+}
+
+.var-textarea {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 480px;
+  padding: 16px 20px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  border: none;
+  resize: vertical;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--rh-text-primary);
+  outline: none;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.var-textarea::placeholder {
+  color: var(--rh-text-placeholder);
+}
+
+.var-textarea:focus {
+  border-color: var(--rh-primary);
 }
 
 .detected-vars {
@@ -268,6 +425,8 @@ async function savePrompt() {
   gap: 6px;
   flex-wrap: wrap;
   margin-bottom: 8px;
+  align-items: center;
+  min-height: 28px;
 }
 
 .var-tag {
@@ -275,9 +434,44 @@ async function savePrompt() {
   font-size: 12px;
 }
 
+.form-item-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--rh-text-tertiary);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
 .add-var-row {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.var-tag.clickable {
+  cursor: pointer;
+}
+
+:deep(.hl-var) {
+  background: rgba(217, 119, 6, 0.08);
+  border-radius: 2px;
+  color: var(--rh-warning);
+  font-weight: 600;
+  transition: background-color var(--rh-duration-normal) var(--rh-transition-normal);
+}
+
+[data-theme="dark"] :deep(.hl-var) {
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--rh-primary-hover);
+}
+
+:deep(.hl-brace) {
+  visibility: hidden;
+}
+
+.var-tag.clickable:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
 }
 
 .add-var-input {

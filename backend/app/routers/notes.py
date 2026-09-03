@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_current_user
+from app.core.response import success_response
 from app.models.user import User
 from app.models.category import Category
-from app.schemas.note import NoteCreate, NoteUpdate, NoteListResponse, NoteDetailResponse
+from app.schemas.note import NoteCreate, NoteUpdate
 from app.services.note_service import NoteService
 
 router = APIRouter(tags=["笔记"])
@@ -73,7 +74,15 @@ async def list_notes(
             cat_name = cat.name if cat else None
         items.append(_format_note_list(n, cat_name))
 
-    return {"data": items, "total": total, "page": page, "page_size": page_size}
+    return success_response(
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        },
+        msg="获取笔记列表成功",
+    )
 
 
 @router.get("/{note_id}")
@@ -87,7 +96,10 @@ async def get_note(
     if note.category_id:
         cat = await db.get(Category, note.category_id)
         cat_name = cat.name if cat else None
-    return {"data": _format_note_detail(note, cat_name)}
+    return success_response(
+        data=_format_note_detail(note, cat_name),
+        msg="获取笔记详情成功",
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -101,7 +113,11 @@ async def create_note(
     if note.category_id:
         cat = await db.get(Category, note.category_id)
         cat_name = cat.name if cat else None
-    return {"data": _format_note_detail(note, cat_name)}
+    return success_response(
+        data=_format_note_detail(note, cat_name),
+        msg="创建笔记成功",
+        code=201,
+    )
 
 
 @router.put("/{note_id}")
@@ -116,16 +132,20 @@ async def update_note(
     if note.category_id:
         cat = await db.get(Category, note.category_id)
         cat_name = cat.name if cat else None
-    return {"data": _format_note_detail(note, cat_name)}
+    return success_response(
+        data=_format_note_detail(note, cat_name),
+        msg="更新笔记成功",
+    )
 
 
-@router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{note_id}")
 async def delete_note(
     note_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     await service.delete_note(db, note_id, current_user.id)
+    return success_response(msg="删除笔记成功")
 
 
 @router.put("/{note_id}/pin")
@@ -135,4 +155,7 @@ async def toggle_pin(
     current_user: User = Depends(get_current_user),
 ):
     note = await service.toggle_pin(db, note_id, current_user.id)
-    return {"data": {"id": note.id, "is_pinned": note.is_pinned}}
+    return success_response(
+        data={"id": note.id, "is_pinned": note.is_pinned},
+        msg="切换置顶状态成功",
+    )

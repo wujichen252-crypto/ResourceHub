@@ -3,6 +3,38 @@ import { ref, computed } from 'vue'
 import { authApi } from '../api/auth'
 import type { User, LoginRequest, RegisterRequest } from '../api/auth'
 
+export interface JwtPayload {
+  sub?: string
+  exp?: number
+  type?: string
+  [key: string]: unknown
+}
+
+/** 解析 JWT payload，解析失败返回 null */
+export function parseJwtPayload(token: string): JwtPayload | null {
+  try {
+    const base64Url = token.split('.')[1]
+    if (!base64Url) return null
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    )
+    return JSON.parse(json) as JwtPayload
+  } catch {
+    return null
+  }
+}
+
+/** 判断 JWT 是否已过期（无法解析按过期处理） */
+export function isTokenExpired(token: string): boolean {
+  const payload = parseJwtPayload(token)
+  if (!payload || typeof payload.exp !== 'number') return true
+  return payload.exp * 1000 <= Date.now()
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref<User | null>(null)
@@ -61,7 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     fetchUser,
-    refreshToken: refreshTokenAction,
+    refreshTokenAction,
     logout,
   }
 })
