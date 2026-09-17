@@ -21,7 +21,7 @@
           <el-icon><Check /></el-icon> 保存
         </el-button>
       </div>
-    </div>
+      </div>
 
     <el-card shadow="never">
       <el-form :model="form" label-position="top">
@@ -128,7 +128,6 @@
         </el-form-item>
       </el-form>
     </el-card>
-      </div>
     </div>
   </Transition>
 </template>
