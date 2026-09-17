@@ -42,17 +42,17 @@
 
       <!-- Right: Diff Preview -->
       <div class="diff-panel">
-        <div v-if="!promptsStore.currentDiff && !selectedVersionId" class="diff-placeholder">
+        <div v-if="!currentDiff && !selectedVersionId" class="diff-placeholder">
           <p>点击一个版本选中，再点击另一个版本对比差异</p>
         </div>
-        <div v-else-if="!promptsStore.currentDiff && selectedVersionId" class="diff-placeholder">
+        <div v-else-if="!currentDiff && selectedVersionId" class="diff-placeholder">
           <p>已选中 v{{ getVersionNumber(selectedVersionId) }}，请再点击另一个版本进行对比</p>
         </div>
         <div v-else-if="promptsStore.diffLoading" v-loading="promptsStore.diffLoading" class="diff-loading" />
         <div v-else class="diff-content">
           <div class="diff-header">
             <span class="diff-label">
-              v{{ promptsStore.currentDiff.v1.version_number }} → v{{ promptsStore.currentDiff.v2.version_number }}
+              v{{ diffForView.v1.version_number }} → v{{ diffForView.v2.version_number }}
             </span>
             <div class="diff-actions">
               <el-button size="small" text @click="handleRestore(selectedVersionId)">
@@ -74,7 +74,7 @@
           </div>
           <div class="diff-lines">
             <div
-              v-for="(seg, i) in promptsStore.currentDiff.diffs"
+              v-for="(seg, i) in diffForView.diffs"
               :key="i"
               class="diff-line"
               :class="'diff-' + seg.type"
@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, PriceTag } from '@element-plus/icons-vue'
 import { usePromptsStore } from '../../stores/prompts'
@@ -109,6 +109,8 @@ const emit = defineEmits<{
 const promptsStore = usePromptsStore()
 const drawerVisible = ref(props.modelValue)
 const selectedVersionId = ref<number | null>(null)
+const currentDiff = computed(() => promptsStore.currentDiff)
+const diffForView = computed(() => currentDiff.value || { v1: { version_number: 0 }, v2: { version_number: 0 }, diffs: [] })
 const currentVersion = ref(0)
 
 watch(() => props.modelValue, (v) => { drawerVisible.value = v })

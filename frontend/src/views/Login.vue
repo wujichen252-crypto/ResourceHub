@@ -1,6 +1,16 @@
 <template>
   <div class="login-container">
-    <Transition name="fade-slide" mode="out-in">
+    <section class="login-intro">
+      <div class="intro-brand"><span class="intro-mark">R</span><strong>ResourceHub</strong></div>
+      <div class="intro-copy">
+        <p class="intro-kicker">Knowledge · Prompts · Reuse</p>
+        <h1>把好想法，<br />整理成下一次的起点。</h1>
+        <p>一处收纳笔记、提示词和工作方法，让你的经验不再散落在不同的角落。</p>
+      </div>
+      <div class="intro-notes"><span class="intro-note">笔记 / 研究记录</span><span class="intro-note ai">✦ AI 提示词库</span><span class="intro-note">可复用的知识</span></div>
+    </section>
+    <section class="login-panel">
+      <Transition name="fade-slide" mode="out-in">
       <div class="login-card animate-fade-in-up" :key="activeTab">
         <!-- Logo -->
         <div class="login-header">
@@ -82,7 +92,8 @@
           </el-tab-pane>
         </el-tabs>
       </div>
-    </Transition>
+      </Transition>
+    </section>
 
     <!-- Forgot Password Dialog -->
     <Transition name="scaleIn" appear>
@@ -250,118 +261,16 @@ async function handleForgotPassword() {
 </script>
 
 <style scoped>
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: var(--rh-bg-base);
-  padding: 24px;
-}
-
-.login-card {
-  width: 400px;
-  max-width: 100%;
-  padding: 40px 36px 32px;
-  background: var(--rh-bg-card);
-  border-radius: var(--rh-radius-md);
-  border: 1px solid var(--rh-border);
-  box-shadow: var(--rh-shadow-sm);
-  transition: border-color var(--rh-duration-normal) var(--rh-transition-normal),
-              box-shadow var(--rh-duration-normal) var(--rh-transition-normal);
-}
-
-/* ── Header ── */
-
-.login-header {
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-.logo-dot {
-  display: inline-block;
-  color: var(--rh-primary);
-  font-size: 16px;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.login-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--rh-text-primary);
-  letter-spacing: -0.02em;
-  margin: 0 0 4px;
-}
-
-.login-subtitle {
-  font-size: 13px;
-  color: var(--rh-text-tertiary);
-  margin: 0;
-}
-
-/* ── Tabs ── */
-
-.login-tabs {
-  margin-top: 4px;
-}
-
-.login-tabs :deep(.el-tabs__item) {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--rh-text-tertiary);
-  transition: var(--rh-transition-all-normal);
-}
-
-.login-tabs :deep(.el-tabs__item.is-active) {
-  color: var(--rh-primary);
-}
-
-.login-tabs :deep(.el-tabs__active-bar) {
-  background-color: var(--rh-primary);
-}
-
-.login-tabs :deep(.el-tabs__nav-wrap::after) {
-  background-color: var(--rh-border);
-}
-
-.login-tabs :deep(.el-form-item__label) {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--rh-text-secondary);
-  margin-bottom: 6px;
-}
-
-.login-tabs :deep(.el-input__wrapper) {
-  padding: 8px 12px;
-}
-
-/* ── Actions ── */
-
-.form-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.submit-btn {
-  height: 40px;
-  font-size: 14px;
-}
-
-/* ── Dark Mode Card Hover ── */
-
-@media (hover: hover) {
-  .login-card:hover {
-    box-shadow: var(--rh-shadow-md);
-  }
-}
+.login-container { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); min-height: 100vh; background: var(--rh-bg-base); }
+.login-intro { position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 9vh 8vw 7vh; background: var(--rh-text-primary); color: var(--rh-bg-card); }
+.login-intro::before, .login-intro::after { position: absolute; border: 1px solid rgba(183,216,75,.34); border-radius: 50%; content: ''; pointer-events: none; }.login-intro::before { width: 520px; height: 520px; right: -220px; bottom: -190px; }.login-intro::after { width: 260px; height: 260px; right: 70px; bottom: 40px; }
+.intro-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; font-family: Georgia, serif; font-size: 19px; }.intro-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--rh-ai); color: var(--rh-text-primary); font-size: 21px; font-weight: 700; }
+.intro-copy { position: relative; z-index: 1; max-width: 550px; }.intro-kicker { margin-bottom: 22px; color: var(--rh-ai); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }.intro-copy h1 { max-width: 540px; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(40px, 5vw, 72px); font-weight: 400; line-height: 1.04; }.intro-copy p { max-width: 420px; margin-top: 24px; color: rgba(255,255,255,.64); font-size: 16px; line-height: 1.8; }.intro-notes { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; }.intro-note { padding: 7px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 3px; color: rgba(255,255,255,.72); font-size: 12px; }.intro-note.ai { border-color: rgba(183,216,75,.45); color: var(--rh-ai); }
+.login-panel { display: flex; align-items: center; justify-content: center; padding: 40px 7vw; background: var(--rh-bg-card); }.login-card { width: 100%; max-width: 420px; }.login-header { margin-bottom: 34px; }.logo-dot { display: none; }.login-title { margin: 0 0 8px; color: var(--rh-text-primary); font-family: Georgia, serif; font-size: 32px; font-weight: 500; }.login-subtitle { margin: 0; color: var(--rh-text-tertiary); font-size: 14px; }.login-tabs :deep(.el-tabs__item) { color: var(--rh-text-tertiary); font-size: 14px; font-weight: 700; }.login-tabs :deep(.el-tabs__item.is-active) { color: var(--rh-primary); }.login-tabs :deep(.el-tabs__active-bar) { background: var(--rh-primary); }.login-tabs :deep(.el-tabs__nav-wrap::after) { background: var(--rh-border); }.login-tabs :deep(.el-form-item__label) { color: var(--rh-text-secondary); font-size: 13px; font-weight: 700; }.login-tabs :deep(.el-input__wrapper) { min-height: 44px; padding: 8px 12px; }.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.submit-btn { height: 44px; font-size: 14px; }.forgot-dialog .el-dialog { border-radius: var(--rh-radius-md); }
+@media (max-width: 760px) { .login-container { display: block; }.login-intro { min-height: 250px; padding: 28px 24px; }.intro-copy { margin-top: 45px; }.intro-copy h1 { font-size: 38px; }.intro-copy p, .intro-notes { display: none; }.login-panel { min-height: calc(100vh - 250px); padding: 42px 24px; }.login-title { font-size: 28px; } }
 </style>
 
-<!-- Dialog non-scoped styles -->
-
 <style>
-.forgot-dialog .el-dialog {
-  border-radius: var(--rh-radius-md);
-}
+.login-intro { display: flex; }
+.login-panel { display: flex; }
 </style>
