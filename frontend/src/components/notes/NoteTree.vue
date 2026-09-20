@@ -275,13 +275,13 @@ async function handleDelete() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
+  padding: 14px 18px 12px;
   border-bottom: 1px solid var(--rh-border-faint);
   transition: border-color var(--rh-duration-normal) var(--rh-transition-normal);
 }
 
 .tree-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--rh-text-primary);
 }
@@ -289,14 +289,14 @@ async function handleDelete() {
 .category-tree {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 12px 10px;
   font-size: 14px;
 }
 
 .tree-node {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 2px 0;
 }
 
@@ -307,6 +307,8 @@ async function handleDelete() {
 }
 
 .node-label {
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

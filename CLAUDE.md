@@ -6,7 +6,8 @@
 ## Project Overview
 
 - **Name:** ResourceHub（资源整合中心）
-- **Stack:** Vue 3 + TypeScript / Python FastAPI / SQLAlchemy 2.0 / SQLite → PostgreSQL
+- **Stack:** Vue 3 + TypeScript / Python FastAPI / SQLAlchemy 2.0 / MySQL 5.7（远端 162.14.111.9）
+- **Database:** MySQL 5.7 @ 162.14.111.9/resourcehub（已于 2026-09-20 完成从 SQLite 迁移；本地留档）
 - **Description:** 个人知识管理与 AI 提示词管理的一体化工具。面向开发者、AI 使用者、知识工作者，提供笔记整理 + AI 提示词库两大核心功能。
 - **Entry:** `backend/main.py`（后端）/ `frontend/src/main.ts`（前端）
 
@@ -20,7 +21,7 @@ cd backend
 uv sync
 
 # 启动开发服务（热重载）
-uv run uvicorn main:app --reload --port 8000
+uv run uvicorn main:app --reload --host 127.0.0.1 --port 8800
 
 # 运行测试
 uv run pytest test_api.py -v
@@ -92,7 +93,7 @@ ResourceHub/
 ### 数据流
 
 ```
-前端 (Vite:5173)  →  Axios  →  后端 (FastAPI:8000)  →  SQLAlchemy  →  SQLite/PostgreSQL
+前端 (Vite:5173)  →  Axios  →  后端 (FastAPI:8800)  →  SQLAlchemy(aiomysql)  →  MySQL 5.7 (47.108.232.238/resourcehub)
        ↑                              ↑
   Element Plus UI               JWT 认证中间件
   Pinia 状态管理                Pydantic 数据校验

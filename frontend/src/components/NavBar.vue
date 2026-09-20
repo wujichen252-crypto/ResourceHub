@@ -19,7 +19,7 @@
 
     <div class="nav-label nav-label-lower">收藏与分类</div>
     <nav class="nav-links">
-      <button class="nav-link" @click="router.push('/prompts')"><el-icon><Star /></el-icon><span>收藏提示词</span></button>
+      <button class="nav-link" @click="openFavorites"><el-icon><Star /></el-icon><span>收藏提示词</span></button>
       <button class="nav-link" @click="router.push('/notes')"><el-icon><Collection /></el-icon><span>全部资源</span></button>
     </nav>
 
@@ -57,8 +57,9 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowDown, Collection, Document, MagicStick, Menu, Monitor, Moon, Plus, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
+import { usePromptsStore } from '../stores/prompts'
 
-const router = useRouter(); const route = useRoute(); const authStore = useAuthStore()
+const router = useRouter(); const route = useRoute(); const authStore = useAuthStore(); const promptsStore = usePromptsStore()
 const userMenuOpen = ref(false); const mobileOpen = ref(false)
 const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')
 const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }]
@@ -67,6 +68,11 @@ const avatarText = computed(() => (authStore.user?.username || '用户').charAt(
 const themeLabel = computed(() => isDark.value ? '切换至浅色模式' : '切换至深色模式')
 
 function toggleTheme() { const theme = isDark.value ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('theme', theme); isDark.value = !isDark.value }
+function openFavorites() {
+  promptsStore.showFavoritesOnly = true
+  promptsStore.setPage(1)
+  router.push('/prompts')
+}
 function logout() { ElMessageBox.confirm('确定要退出登录吗？', '退出登录', { confirmButtonText: '退出', cancelButtonText: '取消', type: 'warning' }).then(() => { authStore.logout(); router.push('/login') }).catch(() => {}) }
 </script>
 

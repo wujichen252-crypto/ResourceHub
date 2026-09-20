@@ -120,6 +120,23 @@ async def create_note(
     )
 
 
+@router.post("/import")
+async def import_or_replace_note(
+    data: NoteCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    note, replaced = await service.import_or_replace_note(db, current_user.id, data)
+    cat_name = None
+    if note.category_id:
+        cat = await db.get(Category, note.category_id)
+        cat_name = cat.name if cat else None
+    return success_response(
+        data=_format_note_detail(note, cat_name),
+        msg="已替换同目录同名笔记" if replaced else "导入笔记成功",
+    )
+
+
 @router.put("/{note_id}")
 async def update_note(
     note_id: int,

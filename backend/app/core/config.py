@@ -6,6 +6,7 @@ ResourceHub 配置管理
 
 import os
 import secrets
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -24,13 +25,19 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:80"]
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:80"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # 无论从项目根目录还是 backend 目录启动，都读取项目根目录配置。
+        env_file=Path(__file__).resolve().parents[3] / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
     )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """将逗号分隔的字符串转换为列表"""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -56,6 +56,10 @@ export const notesApi = {
     return http.post('/notes', data)
   },
 
+  importOrReplace(data: NoteCreate): Promise<Note> {
+    return http.post('/notes/import', data)
+  },
+
   update(id: number, data: NoteUpdate): Promise<Note> {
     return http.put(`/notes/${id}`, data)
   },

@@ -2,7 +2,7 @@
 import httpx
 
 response = httpx.post(
-    "http://localhost:8000/api/auth/register",
+    "http://localhost:8800/api/auth/register",
     json={"username": "testuser", "password": "test123456", "email": "test@test.com"},
 )
 print(f"Status: {response.status_code}")

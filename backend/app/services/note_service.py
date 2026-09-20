@@ -85,6 +85,27 @@ class NoteService:
         await db.refresh(note)
         return note
 
+    async def import_or_replace_note(
+        self, db: AsyncSession, user_id: int, data: NoteCreate
+    ) -> tuple[Note, bool]:
+        """导入笔记：同一目录下同名笔记覆盖旧内容，不同目录允许同名。"""
+        result = await db.execute(
+            select(Note).where(
+                Note.user_id == user_id,
+                Note.category_id == data.category_id,
+                Note.title == data.title,
+            )
+        )
+        note = result.scalar_one_or_none()
+        if note:
+            note.content = data.content
+            note.tags = json.dumps(data.tags, ensure_ascii=False) if data.tags else None
+            await db.commit()
+            await db.refresh(note)
+            return note, True
+
+        return await self.create_note(db, user_id, data), False
+
     async def update_note(
         self, db: AsyncSession, note_id: int, user_id: int, data: NoteUpdate
     ) -> Note:

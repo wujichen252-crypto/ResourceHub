@@ -7,16 +7,16 @@ services:
       dockerfile: Dockerfile
     container_name: resourcehub-backend
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
       - ENV=production
       - DEBUG=false
-      - DATABASE_URL=sqlite+aiosqlite:///./data/resourcehub.db
+      - DATABASE_URL=${DATABASE_URL}  # 远端 MySQL，值配置在仓库根目录 .env（不入库）
       - SECRET_KEY=${SECRET_KEY}
       - ACCESS_TOKEN_EXPIRE_MINUTES=120
       - REFRESH_TOKEN_EXPIRE_DAYS=7
-      - CORS_ORIGINS=["http://localhost","http://localhost:80","http://${SERVER_IP}:80","https://${DOMAIN}"]
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
     volumes:
       - backend-data:/app/data
     networks:
@@ -38,7 +38,7 @@ services:
       - "80:80"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - resourcehub-network
 

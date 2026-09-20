@@ -2,6 +2,9 @@
 ResourceHub Backend — FastAPI Application Entry Point
 """
 
+import asyncio
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import HTTPException, RequestValidationError
@@ -22,10 +25,12 @@ app = FastAPI(
     redirect_slashes=False,
 )
 
+logger = logging.getLogger(__name__)
+
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,9 +46,15 @@ app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
 @app.on_event("startup")
 async def startup():
     """启动时创建数据库表（开发环境）"""
-    async with engine.begin() as conn:
-        from app.models import user, note, prompt, category  # noqa
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with asyncio.timeout(8):
+            async with engine.begin() as conn:
+                from app.models import user, note, prompt, category  # noqa
+                await conn.run_sync(Base.metadata.create_all)
+    except TimeoutError:
+        logger.warning("数据库初始化超时，服务继续启动；请检查 DATABASE_URL 和 MySQL 网络连通性")
+    except Exception:
+        logger.exception("数据库初始化失败，服务继续启动；登录和数据接口需要数据库可用")
 
 
 @app.get("/health")

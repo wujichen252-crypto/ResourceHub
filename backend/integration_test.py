@@ -1,7 +1,7 @@
 """Full integration test for ResourceHub backend API."""
 import httpx
 
-BASE = "http://localhost:8000/api"
+BASE = "http://localhost:8800/api"
 
 
 def test():

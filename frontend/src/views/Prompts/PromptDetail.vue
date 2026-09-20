@@ -2,7 +2,8 @@
   <div class="prompt-detail-page">
     <!-- Page Transition -->
     <Transition name="fade-slide" appear>
-      <div v-if="!loading && prompt" class="page-wrapper animate-fade-in-up">
+      <div class="detail-state">
+        <div v-if="!loading && prompt" class="page-wrapper animate-fade-in-up">
         <!-- Header -->
         <div class="detail-header">
           <el-button text @click="goBack">
@@ -153,18 +154,16 @@
             </el-card>
           </el-col>
         </el-row>
-      </div>
+        </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" v-loading="loading" class="loading-container" />
+        <!-- Loading State -->
+        <div v-if="loading" v-loading="loading" class="loading-container" />
 
-      <!-- Not Found -->
-      <Transition name="fade-slide" appear>
         <div v-if="!prompt && !loading" class="not-found">
           <p>提示词不存在</p>
           <el-button @click="goBack">返回列表</el-button>
         </div>
-      </Transition>
+      </div>
     </Transition>
 
     <!-- Version History Drawer -->

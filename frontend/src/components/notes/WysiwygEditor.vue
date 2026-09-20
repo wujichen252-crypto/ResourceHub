@@ -107,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, onMounted, onUnmounted } from 'vue'
+import { watch, onUnmounted } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -123,8 +123,6 @@ const emit = defineEmits<{
   save: [id: number | undefined, content: string, showToast?: boolean]
 }>()
 
-let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
-let lastSavedContent = ''
 let isSaving = false
 
 const editor = useEditor({
@@ -142,29 +140,16 @@ const editor = useEditor({
     const html = editor.value.getHTML()
     emit('update:modelValue', html)
 
-    // 自动保存：用户停 2 秒后才触发，不显示任何状态打扰输入
-    if (autoSaveTimer) clearTimeout(autoSaveTimer)
-    autoSaveTimer = setTimeout(() => {
-      if (html !== lastSavedContent) {
-        triggerSave(html)
-      }
-    }, 2000)
   },
 })
 
 watch(() => props.modelValue, (newVal) => {
   if (editor.value && newVal !== editor.value.getHTML()) {
     editor.value.commands.setContent(newVal || '', { emitUpdate: false })
-    lastSavedContent = newVal || ''
   }
 })
 
-onMounted(() => {
-  lastSavedContent = props.modelValue || ''
-})
-
 onUnmounted(() => {
-  if (autoSaveTimer) clearTimeout(autoSaveTimer)
   editor.value?.destroy()
 })
 
@@ -173,7 +158,6 @@ async function triggerSave(html: string, showToast?: boolean) {
   isSaving = true
   try {
     emit('save', props.noteId, html, showToast)
-    lastSavedContent = html
   } catch {
     // 静默失败，不打断用户
   } finally {

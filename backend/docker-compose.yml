@@ -18,9 +18,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8800:8000"
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data/resourcehub.db
+      - DATABASE_URL=${DATABASE_URL}  # 远端 MySQL，值配置在 backend/.env（不入库）
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - CORS_ORIGINS=http://localhost:80,http://localhost:5173
     volumes:

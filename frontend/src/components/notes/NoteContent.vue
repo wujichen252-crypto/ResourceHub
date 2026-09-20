@@ -19,6 +19,10 @@
         <el-button @click="triggerImport">
           <el-icon><Upload /></el-icon> 导入 MD
         </el-button>
+        <el-button :loading="isImportingFolder" @click="triggerFolderImport">
+          <el-icon><Folder /></el-icon> 导入文件夹
+        </el-button>
+        <span v-if="isImportingFolder" class="import-progress">{{ importProgress }}</span>
         <el-button type="primary" @click="startCreate">创建第一篇笔记</el-button>
       </div>
     </div>
@@ -87,6 +91,10 @@
           <el-button size="small" @click="triggerImport">
             <el-icon><Upload /></el-icon> 导入 MD
           </el-button>
+          <el-button size="small" :loading="isImportingFolder" @click="triggerFolderImport">
+            <el-icon><Folder /></el-icon> 导入文件夹
+          </el-button>
+          <span v-if="isImportingFolder" class="import-progress">{{ importProgress }}</span>
           <el-button type="primary" size="small" @click="startCreate">
             <el-icon><Plus /></el-icon> 新建笔记
           </el-button>
@@ -156,6 +164,16 @@
     style="display: none"
     @change="handleFileImport"
   />
+  <input
+    ref="folderInputRef"
+    type="file"
+    accept=".md,.markdown"
+    webkitdirectory
+    directory
+    multiple
+    style="display: none"
+    @change="handleFolderImport"
+  />
 
   <!-- Note Context Menu -->
   <teleport to="body">
@@ -176,9 +194,10 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Loading, FolderOpened, Document, Plus, ArrowLeft, Check, Upload,
+  Loading, FolderOpened, Folder, Document, Plus, ArrowLeft, Check, Upload,
 } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
+import { notesApi } from '../../api/notes'
 import { useNotesStore } from '../../stores/notes'
 import { useCategoriesStore } from '../../stores/categories'
 import type { Note } from '../../api/notes'
@@ -205,6 +224,9 @@ const editTags = ref('')
 const editingNoteId = ref<number | undefined>(undefined)
 const editorRef = ref<InstanceType<typeof WysiwygEditor>>()
 const fileInputRef = ref<HTMLInputElement>()
+const folderInputRef = ref<HTMLInputElement>()
+const isImportingFolder = ref(false)
+const importProgress = ref('')
 
 // Computed
 const notes = computed(() => notesStore.notes)
@@ -298,6 +320,11 @@ function triggerImport() {
   fileInputRef.value?.click()
 }
 
+function triggerFolderImport() {
+  if (!props.folderId || isImportingFolder.value) return
+  folderInputRef.value?.click()
+}
+
 async function handleFileImport(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
@@ -307,7 +334,7 @@ async function handleFileImport(e: Event) {
   const content = await file.text()
 
   try {
-    await notesStore.createNote({
+    await notesApi.importOrReplace({
       title,
       content,
       category_id: props.folderId,
@@ -323,6 +350,87 @@ async function handleFileImport(e: Event) {
   input.value = ''
 }
 
+type ImportFile = File & { webkitRelativePath?: string }
+
+async function handleFolderImport(e: Event) {
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || []) as ImportFile[]
+  input.value = ''
+  if (!files.length || !props.folderId) return
+
+  const markdownFiles = files.filter((file) => /\.(md|markdown)$/i.test(file.name))
+  if (!markdownFiles.length) {
+    ElMessage.warning('所选文件夹中没有 Markdown 文件')
+    return
+  }
+
+  isImportingFolder.value = true
+  const categoryCache = new Map<string, number>()
+  const findExistingCategory = (parentId: number | null, name: string) => {
+    const walk = (items: any[]): number | null => {
+      for (const item of items) {
+        if (item.parent_id === parentId && item.name === name) return item.id
+        const found = walk(item.children || [])
+        if (found) return found
+      }
+      return null
+    }
+    return walk(categoriesStore.noteCategories)
+  }
+
+  const ensureCategoryPath = async (segments: string[]) => {
+    let parentId = props.folderId as number
+    const pathParts: string[] = []
+    for (const name of segments) {
+      pathParts.push(name)
+      const pathKey = pathParts.join('/')
+      const cached = categoryCache.get(pathKey)
+      if (cached) {
+        parentId = cached
+        continue
+      }
+      const existing = findExistingCategory(parentId, name)
+      const categoryId = existing ?? (await categoriesStore.createCategory({
+        name,
+        type: 'note',
+        parent_id: parentId,
+      })).id
+      categoryCache.set(pathKey, categoryId)
+      parentId = categoryId
+    }
+    return parentId
+  }
+
+  let imported = 0
+  try {
+    for (const file of markdownFiles) {
+      const relativePath = file.webkitRelativePath || file.name
+      const pathSegments = relativePath.split(/[\\/]/).filter(Boolean)
+      const folderSegments = pathSegments.slice(0, -1)
+      const categoryId = await ensureCategoryPath(folderSegments)
+      const title = file.name.replace(/\.(md|markdown)$/i, '')
+      importProgress.value = `正在导入 ${imported + 1}/${markdownFiles.length}`
+      await notesApi.importOrReplace({
+        title,
+        content: await file.text(),
+        category_id: categoryId,
+        tags: [],
+      })
+      imported += 1
+    }
+    await categoriesStore.fetchCategories('note')
+    await notesStore.fetchNotes()
+    ElMessage.success(`已导入 ${imported} 篇笔记，目录层级已保留`)
+  } catch {
+    ElMessage.error(`导入中断，已完成 ${imported} 篇笔记`)
+    await categoriesStore.fetchCategories('note')
+    await notesStore.fetchNotes()
+  } finally {
+    isImportingFolder.value = false
+    importProgress.value = ''
+  }
+}
+
 function startEdit() {
   if (!selectedNote.value) return
   isEditing.value = true
@@ -335,9 +443,6 @@ function startEdit() {
   editContent.value = isHtml(raw) ? raw : md.render(raw)
   editTags.value = (selectedNote.value.tags || []).join(', ')
 
-  nextTick(() => {
-    editorRef.value?.manualSave?.()
-  })
 }
 
 function cancelEdit() {
@@ -556,6 +661,13 @@ function formatTime(dateStr: string) {
 .list-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.import-progress {
+  font-size: 12px;
+  color: var(--rh-text-tertiary);
+  white-space: nowrap;
 }
 
 .list-title {
