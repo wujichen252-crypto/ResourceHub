@@ -1,55 +1,35 @@
-import json
-import re
-
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_current_user
-from app.core.response import success_response
+from app.core.response import orm_to_dict, success_response
 from app.models.user import User
-from app.models.category import Category
-from app.schemas.note import NoteCreate, NoteUpdate
+from app.schemas.note import NoteCreate, NoteDetailResponse, NoteListResponse, NoteUpdate
+from app.services.category_service import CategoryService
 from app.services.note_service import NoteService
 
 router = APIRouter(tags=["笔记"])
 service = NoteService()
+category_service = CategoryService()
 
 
-def _strip_html(text: str) -> str:
-    """去除 HTML 标签，用于生成纯文本预览"""
-    return re.sub(r"<[^>]+>", "", text)
+def _note_list_out(note, category_name: str | None = None) -> dict:
+    return NoteListResponse.model_validate(
+        {**orm_to_dict(note), "category_name": category_name}
+    ).model_dump()
 
 
-def _format_note_list(note, category_name: str | None = None) -> dict:
-    tags = json.loads(note.tags) if note.tags else []
-    raw = note.content or ""
-    content_preview = _strip_html(raw)[:200].replace("\n", " ")
-    return {
-        "id": note.id,
-        "title": note.title,
-        "content_preview": content_preview,
-        "category_id": note.category_id,
-        "category_name": category_name,
-        "tags": tags,
-        "is_pinned": note.is_pinned,
-        "created_at": note.created_at.isoformat() if note.created_at else None,
-        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
-    }
+def _note_detail_out(note, category_name: str | None = None) -> dict:
+    return NoteDetailResponse.model_validate(
+        {**orm_to_dict(note), "category_name": category_name}
+    ).model_dump()
 
 
-def _format_note_detail(note, category_name: str | None = None) -> dict:
-    tags = json.loads(note.tags) if note.tags else []
-    return {
-        "id": note.id,
-        "title": note.title,
-        "content": note.content or "",
-        "category_id": note.category_id,
-        "category_name": category_name,
-        "tags": tags,
-        "is_pinned": note.is_pinned,
-        "created_at": note.created_at.isoformat() if note.created_at else None,
-        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
-    }
+async def _single_category_name(db: AsyncSession, category_id: int | None) -> str | None:
+    if category_id is None:
+        return None
+    names = await category_service.get_name_map(db, {category_id})
+    return names.get(category_id)
 
 
 @router.get("")
@@ -66,13 +46,11 @@ async def list_notes(
     notes, total = await service.get_notes(
         db, current_user.id, page, page_size, search, category_id, tag, is_pinned
     )
-    items = []
-    for n in notes:
-        cat_name = None
-        if n.category_id:
-            cat = await db.get(Category, n.category_id)
-            cat_name = cat.name if cat else None
-        items.append(_format_note_list(n, cat_name))
+    # 一次批量查询分类名，避免逐条 get 造成 N+1
+    names = await category_service.get_name_map(
+        db, {n.category_id for n in notes if n.category_id is not None}
+    )
+    items = [_note_list_out(n, names.get(n.category_id)) for n in notes]
 
     return success_response(
         data={
@@ -92,12 +70,8 @@ async def get_note(
     current_user: User = Depends(get_current_user),
 ):
     note = await service.get_note(db, note_id, current_user.id)
-    cat_name = None
-    if note.category_id:
-        cat = await db.get(Category, note.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_note_detail(note, cat_name),
+        data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="获取笔记详情成功",
     )
 
@@ -109,12 +83,8 @@ async def create_note(
     current_user: User = Depends(get_current_user),
 ):
     note = await service.create_note(db, current_user.id, data)
-    cat_name = None
-    if note.category_id:
-        cat = await db.get(Category, note.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_note_detail(note, cat_name),
+        data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="创建笔记成功",
         code=201,
     )
@@ -127,12 +97,8 @@ async def import_or_replace_note(
     current_user: User = Depends(get_current_user),
 ):
     note, replaced = await service.import_or_replace_note(db, current_user.id, data)
-    cat_name = None
-    if note.category_id:
-        cat = await db.get(Category, note.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_note_detail(note, cat_name),
+        data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="已替换同目录同名笔记" if replaced else "导入笔记成功",
     )
 
@@ -145,12 +111,8 @@ async def update_note(
     current_user: User = Depends(get_current_user),
 ):
     note = await service.update_note(db, note_id, current_user.id, data)
-    cat_name = None
-    if note.category_id:
-        cat = await db.get(Category, note.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_note_detail(note, cat_name),
+        data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="更新笔记成功",
     )
 

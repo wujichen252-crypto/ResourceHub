@@ -3,6 +3,7 @@ from sqlalchemy import select, func, or_, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
+from app.core.errors import ErrorCode
 from app.models.note import Note
 from app.models.category import Category
 from app.schemas.note import NoteCreate, NoteUpdate
@@ -69,7 +70,7 @@ class NoteService:
         )
         note = result.scalar_one_or_none()
         if not note:
-            raise HTTPException(status_code=404, detail={"code": 404, "message": "笔记不存在"})
+            raise HTTPException(status_code=404, detail={"code": ErrorCode.NOTE_NOT_FOUND, "message": "笔记不存在"})
         return note
 
     async def create_note(self, db: AsyncSession, user_id: int, data: NoteCreate) -> Note:

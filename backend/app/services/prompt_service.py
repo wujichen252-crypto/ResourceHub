@@ -4,6 +4,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
+from app.core.errors import ErrorCode
 from app.models.prompt import Prompt, PromptVersion, PromptPreset, PromptUsageLog
 import difflib
 from app.schemas.prompt import (
@@ -56,7 +57,7 @@ class PromptService:
         )
         prompt = result.scalar_one_or_none()
         if not prompt:
-            raise HTTPException(status_code=404, detail={"code": 404, "message": "提示词不存在"})
+            raise HTTPException(status_code=404, detail={"code": ErrorCode.PROMPT_NOT_FOUND, "message": "提示词不存在"})
         return prompt
 
     async def create_prompt(
@@ -191,7 +192,7 @@ class PromptService:
         )
         version = result.scalar_one_or_none()
         if not version:
-            raise HTTPException(status_code=404, detail={"code": 404, "message": "版本不存在"})
+            raise HTTPException(status_code=404, detail={"code": ErrorCode.VERSION_NOT_FOUND, "message": "版本不存在"})
         return version
 
     async def restore_version(
@@ -301,7 +302,7 @@ class PromptService:
         )
         preset = result.scalar_one_or_none()
         if not preset:
-            raise HTTPException(status_code=404, detail={"code": 404, "message": "预设不存在"})
+            raise HTTPException(status_code=404, detail={"code": ErrorCode.PRESET_NOT_FOUND, "message": "预设不存在"})
         # Verify ownership through the prompt
         await self.get_prompt(db, preset.prompt_id, user_id)
         await db.delete(preset)

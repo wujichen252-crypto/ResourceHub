@@ -7,6 +7,7 @@ from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, UserResponse,
     ForgotPasswordRequest, ChangePasswordRequest,
 )
+from app.core.errors import ErrorCode
 from app.core.security import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token
@@ -20,7 +21,7 @@ class AuthService:
         if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail={"code": 409, "message": f"用户名 '{data.username}' 已被注册"}
+                detail={"code": ErrorCode.USERNAME_EXISTS, "message": f"用户名 '{data.username}' 已被注册"}
             )
         # Check email uniqueness if provided
         if data.email:
@@ -28,7 +29,7 @@ class AuthService:
             if result.scalar_one_or_none():
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail={"code": 409, "message": "该邮箱已被注册"}
+                    detail={"code": ErrorCode.EMAIL_EXISTS, "message": "该邮箱已被注册"}
                 )
         user = User(
             username=data.username,
@@ -46,7 +47,7 @@ class AuthService:
         if not user or not verify_password(data.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"code": 401, "message": "用户名或密码错误"}
+                detail={"code": ErrorCode.INVALID_CREDENTIALS, "message": "用户名或密码错误"}
             )
         return TokenResponse(
             access_token=create_access_token(user.id),
@@ -59,14 +60,14 @@ class AuthService:
         if not payload or payload.get("type") != "refresh":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"code": 401, "message": "Token 无效或已过期，请重新登录"}
+                detail={"code": ErrorCode.TOKEN_INVALID, "message": "Token 无效或已过期，请重新登录"}
             )
         user_id = int(payload["sub"])
         result = await db.execute(select(User).where(User.id == user_id))
         if not result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"code": 401, "message": "用户不存在"}
+                detail={"code": ErrorCode.USER_NOT_FOUND, "message": "用户不存在"}
             )
         return TokenResponse(
             access_token=create_access_token(user_id),
@@ -89,7 +90,7 @@ class AuthService:
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": 400, "message": "用户名或邮箱不匹配"},
+                detail={"code": ErrorCode.USERNAME_EMAIL_MISMATCH, "message": "用户名或邮箱不匹配"},
             )
         user.password_hash = hash_password(data.new_password)
         await db.commit()
@@ -104,7 +105,7 @@ class AuthService:
         if not user or not verify_password(data.old_password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": 400, "message": "原密码错误"},
+                detail={"code": ErrorCode.WRONG_OLD_PASSWORD, "message": "原密码错误"},
             )
         user.password_hash = hash_password(data.new_password)
         await db.commit()

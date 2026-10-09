@@ -1,4 +1,6 @@
 from .auth import (
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
@@ -8,12 +10,19 @@ from .auth import (
 from .category import CategoryCreate, CategoryResponse, CategoryUpdate
 from .note import NoteCreate, NoteDetailResponse, NoteListResponse, NoteUpdate
 from .prompt import (
+    DiffResponse,
+    DiffSegment,
     FavoriteResponse,
+    LabelUpdateRequest,
     PinResponse,
+    PresetCreate,
+    PresetResponse,
+    PresetUpdate,
     PromptCreate,
     PromptDetailResponse,
     PromptListResponse,
     PromptUpdate,
+    PromptVersionResponse,
     RenderRequest,
     RenderResponse,
     UsageResponse,
@@ -26,6 +35,8 @@ __all__ = [
     "TokenResponse",
     "RefreshRequest",
     "UserResponse",
+    "ForgotPasswordRequest",
+    "ChangePasswordRequest",
     # category
     "CategoryCreate",
     "CategoryUpdate",
@@ -45,4 +56,11 @@ __all__ = [
     "PinResponse",
     "FavoriteResponse",
     "UsageResponse",
+    "PresetCreate",
+    "PresetUpdate",
+    "PresetResponse",
+    "PromptVersionResponse",
+    "LabelUpdateRequest",
+    "DiffSegment",
+    "DiffResponse",
 ]

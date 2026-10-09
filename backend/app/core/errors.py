@@ -31,10 +31,14 @@ class ErrorCode(IntEnum):
     TOKEN_EXPIRED = 1004
     TOKEN_INVALID = 1005
     USER_NOT_FOUND = 1006
+    USERNAME_EMAIL_MISMATCH = 1007
+    WRONG_OLD_PASSWORD = 1008
 
     NOTE_NOT_FOUND = 2001
     CATEGORY_NOT_FOUND = 3001
     PROMPT_NOT_FOUND = 4001
+    VERSION_NOT_FOUND = 4002
+    PRESET_NOT_FOUND = 4003
 
 
 ERROR_MESSAGES = {
@@ -52,9 +56,13 @@ ERROR_MESSAGES = {
     ErrorCode.TOKEN_EXPIRED: "Token 已过期",
     ErrorCode.TOKEN_INVALID: "Token 无效",
     ErrorCode.USER_NOT_FOUND: "用户不存在",
+    ErrorCode.USERNAME_EMAIL_MISMATCH: "用户名或邮箱不匹配",
+    ErrorCode.WRONG_OLD_PASSWORD: "原密码错误",
     ErrorCode.NOTE_NOT_FOUND: "笔记不存在",
     ErrorCode.CATEGORY_NOT_FOUND: "分类不存在",
     ErrorCode.PROMPT_NOT_FOUND: "提示词不存在",
+    ErrorCode.VERSION_NOT_FOUND: "版本不存在",
+    ErrorCode.PRESET_NOT_FOUND: "预设不存在",
 }
 
 

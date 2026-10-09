@@ -1,46 +1,55 @@
-import json
-
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_current_user
-from app.core.response import success_response
+from app.core.response import orm_to_dict, success_response
 from app.models.user import User
-from app.models.category import Category
 from app.schemas.prompt import (
     PromptCreate,
+    PromptDetailResponse,
+    PromptListResponse,
     PromptUpdate,
-    RenderRequest,
+    PromptVersionResponse,
     PresetCreate,
+    PresetResponse,
+    RenderRequest,
     LabelUpdateRequest,
 )
+from app.services.category_service import CategoryService
 from app.services.prompt_service import PromptService
 from app.services.prompt_analytics_service import PromptAnalyticsService
 
 router = APIRouter(tags=["提示词"])
 service = PromptService()
 analytics_service = PromptAnalyticsService()
+category_service = CategoryService()
 
 
-def _format_prompt(prompt, category_name: str | None = None, include_content: bool = False) -> dict:
-    variables = json.loads(prompt.variables) if prompt.variables else []
-    tags = json.loads(prompt.tags) if prompt.tags else []
-    result = {
-        "id": prompt.id,
-        "title": prompt.title,
-        "description": prompt.description or "",
-        "category_id": prompt.category_id,
-        "category_name": category_name,
-        "variables": variables,
-        "tags": tags,
-        "is_favorite": prompt.is_favorite,
-        "usage_count": prompt.usage_count,
-        "created_at": prompt.created_at.isoformat() if prompt.created_at else None,
-        "updated_at": prompt.updated_at.isoformat() if prompt.updated_at else None,
-    }
-    if include_content:
-        result["content"] = prompt.content
-    return result
+def _prompt_list_out(prompt, category_name: str | None = None) -> dict:
+    return PromptListResponse.model_validate(
+        {**orm_to_dict(prompt), "category_name": category_name}
+    ).model_dump()
+
+
+def _prompt_detail_out(prompt, category_name: str | None = None) -> dict:
+    return PromptDetailResponse.model_validate(
+        {**orm_to_dict(prompt), "category_name": category_name}
+    ).model_dump()
+
+
+def _version_out(version) -> dict:
+    return PromptVersionResponse.model_validate(orm_to_dict(version)).model_dump()
+
+
+def _preset_out(preset) -> dict:
+    return PresetResponse.model_validate(orm_to_dict(preset)).model_dump()
+
+
+async def _single_category_name(db: AsyncSession, category_id: int | None) -> str | None:
+    if category_id is None:
+        return None
+    names = await category_service.get_name_map(db, {category_id})
+    return names.get(category_id)
 
 
 @router.get("")
@@ -59,13 +68,11 @@ async def list_prompts(
         db, current_user.id, page, page_size,
         category_id, is_favorite, search, sort_by, tag,
     )
-    items = []
-    for p in prompts:
-        cat_name = None
-        if p.category_id:
-            cat = await db.get(Category, p.category_id)
-            cat_name = cat.name if cat else None
-        items.append(_format_prompt(p, cat_name))
+    # 一次批量查询分类名，避免逐条 get 造成 N+1
+    names = await category_service.get_name_map(
+        db, {p.category_id for p in prompts if p.category_id is not None}
+    )
+    items = [_prompt_list_out(p, names.get(p.category_id)) for p in prompts]
 
     return success_response(
         data={
@@ -78,6 +85,18 @@ async def list_prompts(
     )
 
 
+@router.get("/analytics/usage")
+async def get_usage_analytics(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    summary = await analytics_service.get_summary(db, current_user.id)
+    return success_response(
+        data=summary,
+        msg="获取使用统计成功",
+    )
+
+
 @router.get("/{prompt_id}")
 async def get_prompt(
     prompt_id: int,
@@ -85,12 +104,8 @@ async def get_prompt(
     current_user: User = Depends(get_current_user),
 ):
     prompt = await service.get_prompt(db, prompt_id, current_user.id)
-    cat_name = None
-    if prompt.category_id:
-        cat = await db.get(Category, prompt.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_prompt(prompt, cat_name, include_content=True),
+        data=_prompt_detail_out(prompt, await _single_category_name(db, prompt.category_id)),
         msg="获取提示词详情成功",
     )
 
@@ -102,12 +117,8 @@ async def create_prompt(
     current_user: User = Depends(get_current_user),
 ):
     prompt = await service.create_prompt(db, current_user.id, data)
-    cat_name = None
-    if prompt.category_id:
-        cat = await db.get(Category, prompt.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_prompt(prompt, cat_name, include_content=True),
+        data=_prompt_detail_out(prompt, await _single_category_name(db, prompt.category_id)),
         msg="创建提示词成功",
         code=201,
     )
@@ -121,27 +132,13 @@ async def update_prompt(
     current_user: User = Depends(get_current_user),
 ):
     prompt = await service.update_prompt(db, prompt_id, current_user.id, data)
-    cat_name = None
-    if prompt.category_id:
-        cat = await db.get(Category, prompt.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_prompt(prompt, cat_name, include_content=True),
+        data=_prompt_detail_out(prompt, await _single_category_name(db, prompt.category_id)),
         msg="更新提示词成功",
     )
 
 
 # ── Presets ──
-
-
-def _format_preset(preset) -> dict:
-    return {
-        "id": preset.id,
-        "prompt_id": preset.prompt_id,
-        "name": preset.name,
-        "values": json.loads(preset.values) if preset.values else {},
-        "created_at": preset.created_at.isoformat() if preset.created_at else None,
-    }
 
 
 @router.get("/{prompt_id}/presets")
@@ -152,7 +149,7 @@ async def list_presets(
 ):
     presets = await service.get_presets(db, prompt_id, current_user.id)
     return success_response(
-        data=[_format_preset(p) for p in presets],
+        data=[_preset_out(p) for p in presets],
         msg="获取预设列表成功",
     )
 
@@ -166,7 +163,7 @@ async def create_preset(
 ):
     preset = await service.create_preset(db, prompt_id, current_user.id, data.name, data.values)
     return success_response(
-        data=_format_preset(preset),
+        data=_preset_out(preset),
         msg="创建预设成功",
         code=201,
     )
@@ -180,21 +177,6 @@ async def delete_preset(
 ):
     await service.delete_preset(db, preset_id, current_user.id)
     return success_response(msg="删除预设成功")
-
-
-# ── Analytics ──
-
-
-@router.get("/analytics/usage")
-async def get_usage_analytics(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    summary = await analytics_service.get_summary(db, current_user.id)
-    return success_response(
-        data=summary,
-        msg="获取使用统计成功",
-    )
 
 
 @router.delete("/{prompt_id}")
@@ -250,23 +232,6 @@ async def toggle_favorite(
 # ── Version History ──
 
 
-def _format_version(version) -> dict:
-    return {
-        "id": version.id,
-        "prompt_id": version.prompt_id,
-        "version_number": version.version_number,
-        "title": version.title,
-        "description": version.description or "",
-        "content": version.content,
-        "variables": json.loads(version.variables) if version.variables else [],
-        "tags": json.loads(version.tags) if version.tags else [],
-        "message": version.message or "",
-        "labels": json.loads(version.labels) if version.labels else [],
-        "branch_name": version.branch_name,
-        "created_at": version.created_at.isoformat() if version.created_at else None,
-    }
-
-
 @router.get("/{prompt_id}/versions")
 async def list_versions(
     prompt_id: int,
@@ -275,7 +240,7 @@ async def list_versions(
 ):
     versions = await service.get_versions(db, prompt_id, current_user.id)
     return success_response(
-        data=[_format_version(v) for v in versions],
+        data=[_version_out(v) for v in versions],
         msg="获取版本列表成功",
     )
 
@@ -289,7 +254,7 @@ async def get_version(
 ):
     version = await service.get_version(db, prompt_id, version_id, current_user.id)
     return success_response(
-        data=_format_version(version),
+        data=_version_out(version),
         msg="获取版本详情成功",
     )
 
@@ -302,12 +267,8 @@ async def restore_version(
     current_user: User = Depends(get_current_user),
 ):
     prompt = await service.restore_version(db, prompt_id, version_id, current_user.id)
-    cat_name = None
-    if prompt.category_id:
-        cat = await db.get(Category, prompt.category_id)
-        cat_name = cat.name if cat else None
     return success_response(
-        data=_format_prompt(prompt, cat_name, include_content=True),
+        data=_prompt_detail_out(prompt, await _single_category_name(db, prompt.category_id)),
         msg="恢复版本成功",
     )
 
@@ -337,4 +298,4 @@ async def update_labels(
     version = await service.update_labels(
         db, prompt_id, version_id, current_user.id, data.labels
     )
-    return success_response(data=_format_version(version), msg="更新标签成功")
+    return success_response(data=_version_out(version), msg="更新标签成功")

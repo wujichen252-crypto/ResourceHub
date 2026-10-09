@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir \
     uvicorn[standard]==0.30.0 \
     sqlalchemy[asyncio]==2.0.35 \
     aiosqlite==0.20.0 \
-    aiomysql==0.2.0 \
+    aiomysql==0.3.2 \
     alembic==1.13.2 \
     pydantic==2.9.0 \
     pydantic-settings==2.5.0 \

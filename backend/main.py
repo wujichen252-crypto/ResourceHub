@@ -4,6 +4,7 @@ ResourceHub Backend — FastAPI Application Entry Point
 
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,27 @@ from app.core.response import error_response, APIError
 from app.core.errors import ErrorCode
 from app.routers import auth, notes, prompts, categories
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """启动时建表仅限非生产环境；生产环境 schema 由 Alembic 迁移管辖"""
+    if settings.is_production:
+        logger.info("生产环境：跳过 create_all，schema 变更请使用 `alembic upgrade head`")
+    else:
+        try:
+            async with asyncio.timeout(8):
+                async with engine.begin() as conn:
+                    from app.models import user, note, prompt, category  # noqa
+                    await conn.run_sync(Base.metadata.create_all)
+        except TimeoutError:
+            logger.warning("数据库初始化超时，服务继续启动；请检查 DATABASE_URL 和 MySQL 网络连通性")
+        except Exception:
+            logger.exception("数据库初始化失败，服务继续启动；登录和数据接口需要数据库可用")
+    yield
+
+
 app = FastAPI(
     title="ResourceHub API",
     description="个人知识管理与 AI 提示词管理的一体化工具",
@@ -23,9 +45,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     redirect_slashes=False,
+    lifespan=lifespan,
 )
-
-logger = logging.getLogger(__name__)
 
 # CORS 配置
 app.add_middleware(
@@ -41,20 +62,6 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(notes.router, prefix="/api/notes", tags=["笔记"])
 app.include_router(prompts.router, prefix="/api/prompts", tags=["提示词"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
-
-
-@app.on_event("startup")
-async def startup():
-    """启动时创建数据库表（开发环境）"""
-    try:
-        async with asyncio.timeout(8):
-            async with engine.begin() as conn:
-                from app.models import user, note, prompt, category  # noqa
-                await conn.run_sync(Base.metadata.create_all)
-    except TimeoutError:
-        logger.warning("数据库初始化超时，服务继续启动；请检查 DATABASE_URL 和 MySQL 网络连通性")
-    except Exception:
-        logger.exception("数据库初始化失败，服务继续启动；登录和数据接口需要数据库可用")
 
 
 @app.get("/health")

@@ -6,6 +6,19 @@
 from typing import Any
 
 from fastapi.responses import JSONResponse
+from sqlalchemy import inspect
+from sqlalchemy.orm import DeclarativeBase
+
+
+def orm_to_dict(obj: DeclarativeBase) -> dict[str, Any]:
+    """
+    将 ORM 实例的列值转为 dict（只含列，不触碰 relationship，避免异步惰性加载）
+    供路由层合并富化字段（如 category_name）后交给响应模型校验
+    """
+    return {
+        column.key: getattr(obj, column.key)
+        for column in inspect(obj).mapper.column_attrs
+    }
 
 
 def success_response(data: Any = None, msg: str = "ok", code: int = 200) -> dict:

@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.common import EmptyStr, JsonDict, JsonList
+
 
 class PromptCreate(BaseModel):
     title: str
@@ -27,11 +29,11 @@ class PromptUpdate(BaseModel):
 class PromptListResponse(BaseModel):
     id: int
     title: str
-    description: str | None
+    description: EmptyStr
     category_id: int | None
-    category_name: str | None
-    variables: list[str]
-    tags: list[str] = []
+    category_name: str | None = None
+    variables: JsonList
+    tags: JsonList = []
     is_favorite: bool
     usage_count: int
     created_at: datetime
@@ -43,12 +45,12 @@ class PromptListResponse(BaseModel):
 class PromptDetailResponse(BaseModel):
     id: int
     title: str
-    description: str | None
+    description: EmptyStr
     content: str
     category_id: int | None
-    category_name: str | None
-    variables: list[str]
-    tags: list[str] = []
+    category_name: str | None = None
+    variables: JsonList
+    tags: JsonList = []
     is_favorite: bool
     usage_count: int
     created_at: datetime
@@ -95,7 +97,7 @@ class PresetResponse(BaseModel):
     id: int
     prompt_id: int
     name: str
-    values: dict[str, str]
+    values: JsonDict
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -111,12 +113,12 @@ class PromptVersionResponse(BaseModel):
     prompt_id: int
     version_number: int
     title: str
-    description: str | None
+    description: EmptyStr
     content: str
-    variables: list[str] = []
-    tags: list[str] = []
-    message: str | None = None
-    labels: list[str] = []
+    variables: JsonList = []
+    tags: JsonList = []
+    message: EmptyStr = ""
+    labels: JsonList = []
     branch_name: str = "main"
     created_at: datetime
 

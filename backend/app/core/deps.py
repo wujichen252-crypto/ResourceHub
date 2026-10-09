@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import SessionLocal
+from app.core.errors import ErrorCode
 from app.core.security import decode_token
 from app.models.user import User
 
@@ -31,14 +32,14 @@ async def get_current_user(
     if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": 401, "message": "未提供认证令牌"},
+            detail={"code": ErrorCode.UNAUTHORIZED, "message": "未提供认证令牌"},
         )
 
     payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": 401, "message": "令牌无效或已过期"},
+            detail={"code": ErrorCode.TOKEN_INVALID, "message": "令牌无效或已过期"},
         )
 
     user_id = int(payload["sub"])
@@ -48,7 +49,7 @@ async def get_current_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": 401, "message": "用户不存在"},
+            detail={"code": ErrorCode.USER_NOT_FOUND, "message": "用户不存在"},
         )
 
     return user

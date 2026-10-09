@@ -23,8 +23,13 @@ uv sync
 # 启动开发服务（热重载）
 uv run uvicorn main:app --reload --host 127.0.0.1 --port 8800
 
-# 运行测试
-uv run pytest test_api.py -v
+# 运行测试（临时 SQLite，无需启动服务/数据库）
+uv run pytest
+
+# 数据库迁移（schema 变更标准流程，见 ADR-007）
+uv run alembic revision --autogenerate -m "描述"   # 生成迁移
+uv run alembic upgrade head                         # 应用迁移
+uv run alembic check                                # 检查模型与库的漂移
 
 # 启动完整服务（Docker）
 docker compose up --build
@@ -59,12 +64,16 @@ ResourceHub/
 │   │   │   ├── note.py         # 笔记模型（含全文本搜索）
 │   │   │   ├── prompt.py       # 提示词模型（含变量字段）
 │   │   │   └── category.py     # 分类模型（树形结构）
-│   │   ├── schemas/            # Pydantic 请求/响应模式
+│   │   ├── schemas/            # Pydantic 请求/响应模式（common.py 提供 JsonList/JsonDict/EmptyStr）
+│   │   ├── services/           # 业务逻辑层（直接组合 ORM 查询）
 │   │   ├── routers/            # API 路由
 │   │   │   ├── auth.py         # 认证（注册/登录/刷新）
 │   │   │   ├── notes.py        # 笔记 CRUD
 │   │   │   ├── prompts.py      # 提示词 CRUD
 │   │   │   └── categories.py   # 分类管理
+│   ├── migrations/             # Alembic 迁移（schema 演进唯一入口，见 ADR-007）
+│   ├── tests/                  # pytest 回归套件（临时 SQLite + TestClient）
+│   ├── alembic.ini             # Alembic 配置（连接串由 env.py 从 settings 读取）
 │   ├── pyproject.toml        # uv 项目依赖声明
 │   ├── uv.lock               # 锁定版本
 │   └── Dockerfile
@@ -93,7 +102,7 @@ ResourceHub/
 ### 数据流
 
 ```
-前端 (Vite:5173)  →  Axios  →  后端 (FastAPI:8800)  →  SQLAlchemy(aiomysql)  →  MySQL 5.7 (47.108.232.238/resourcehub)
+前端 (Vite:5173)  →  Axios  →  后端 (FastAPI:8800)  →  SQLAlchemy(aiomysql)  →  MySQL 5.7 (162.14.111.9/resourcehub)
        ↑                              ↑
   Element Plus UI               JWT 认证中间件
   Pinia 状态管理                Pydantic 数据校验

@@ -11,6 +11,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "jsx": "preserve",
+    "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,

@@ -2,6 +2,7 @@ from sqlalchemy import select, delete as sqla_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
+from app.core.errors import ErrorCode
 from app.models.category import Category
 from app.models.note import Note
 from app.models.prompt import Prompt
@@ -9,6 +10,17 @@ from app.schemas.category import CategoryCreate, CategoryUpdate
 
 
 class CategoryService:
+    async def get_name_map(
+        self, db: AsyncSession, category_ids: set[int]
+    ) -> dict[int, str]:
+        """按 ID 集合批量获取 {分类ID: 名称}，供列表富化 category_name（一次查询，避免 N+1）"""
+        if not category_ids:
+            return {}
+        result = await db.execute(
+            select(Category.id, Category.name).where(Category.id.in_(category_ids))
+        )
+        return {row[0]: row[1] for row in result.all()}
+
     async def get_category_tree(
         self, db: AsyncSession, user_id: int, type: str
     ) -> list[Category]:
@@ -63,7 +75,8 @@ class CategoryService:
         category = result.scalar_one_or_none()
         if not category:
             raise HTTPException(
-                status_code=404, detail={"code": 404, "message": "分类不存在"}
+                status_code=404,
+                detail={"code": ErrorCode.CATEGORY_NOT_FOUND, "message": "分类不存在"}
             )
         update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -109,7 +122,8 @@ class CategoryService:
         category = result.scalar_one_or_none()
         if not category:
             raise HTTPException(
-                status_code=404, detail={"code": 404, "message": "分类不存在"}
+                status_code=404,
+                detail={"code": ErrorCode.CATEGORY_NOT_FOUND, "message": "分类不存在"}
             )
         await self._delete_category_and_children(db, user_id, category_id, category.type)
         await db.commit()

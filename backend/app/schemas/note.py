@@ -1,6 +1,9 @@
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.schemas.common import EmptyStr, JsonList, strip_html
 
 
 class NoteCreate(BaseModel):
@@ -18,17 +21,26 @@ class NoteUpdate(BaseModel):
 
 
 class NoteListResponse(BaseModel):
+    """列表项：不返回全文，content_preview 由 content 列派生（剥 HTML→截断→换行替换）"""
     id: int
     title: str
     content_preview: str
     category_id: int | None
-    category_name: str | None
-    tags: list[str]
+    category_name: str | None = None
+    tags: JsonList
     is_pinned: bool
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _derive_preview(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "content_preview" not in data and "content" in data:
+            data = dict(data)
+            data["content_preview"] = strip_html(data.get("content") or "")[:200].replace("\n", " ")
+        return data
 
     @field_validator("content_preview", mode="before")
     @classmethod
@@ -42,10 +54,10 @@ class NoteListResponse(BaseModel):
 class NoteDetailResponse(BaseModel):
     id: int
     title: str
-    content: str
+    content: EmptyStr
     category_id: int | None
-    category_name: str | None
-    tags: list[str]
+    category_name: str | None = None
+    tags: JsonList
     is_pinned: bool
     created_at: datetime
     updated_at: datetime

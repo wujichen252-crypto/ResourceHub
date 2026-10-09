@@ -16,6 +16,13 @@ node_modules/
 dist/
 .vite/
 
+# 前端源码目录下的 tsc 编译产物（会遮蔽 .ts/.vue 源码，禁止入库）
+frontend/src/**/*.js
+frontend/src/**/*.js.map
+frontend/vite.config.js
+frontend/vite.config.d.ts
+*.tsbuildinfo
+
 # IDE
 .vscode/
 .idea/
