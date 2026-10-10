@@ -2,10 +2,19 @@
   <Transition name="fade-slide" appear>
     <div class="notes-page animate-fade-in-up">
       <div class="page-sidebar">
-        <NoteTree v-model="selectedFolderId" />
+        <NoteTree
+          :model-value="selectedFolderId"
+          :selected-note-id="selectedNoteId"
+          @update:model-value="handleSelectFolder"
+          @select-note="handleSelectNote"
+        />
       </div>
       <div class="page-content">
-        <NoteContent :folder-id="selectedFolderId" />
+        <NoteContent
+          :folder-id="selectedFolderId"
+          :note-id="selectedNoteId"
+          @update:note-id="selectedNoteId = $event"
+        />
       </div>
     </div>
   </Transition>
@@ -15,8 +24,25 @@
 import { ref } from 'vue'
 import NoteTree from '../../components/notes/NoteTree.vue'
 import NoteContent from '../../components/notes/NoteContent.vue'
+import { useNotesStore } from '../../stores/notes'
 
+const notesStore = useNotesStore()
 const selectedFolderId = ref<number | null>(null)
+const selectedNoteId = ref<number | null>(null)
+
+function handleSelectFolder(folderId: number | null) {
+  selectedFolderId.value = folderId
+  selectedNoteId.value = null // 回到目录列表视图
+}
+
+function handleSelectNote(noteId: number) {
+  selectedNoteId.value = noteId
+  // 同步高亮笔记所属分类，便于退出阅读后回到对应目录列表
+  const note = notesStore.allNotes.find((n) => n.id === noteId)
+  if (note && note.category_id != null) {
+    selectedFolderId.value = note.category_id
+  }
+}
 </script>
 
 <style scoped>

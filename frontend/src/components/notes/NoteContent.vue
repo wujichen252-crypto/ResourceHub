@@ -6,7 +6,7 @@
     </div>
 
     <!-- Empty State: No folder selected -->
-    <div v-else-if="!folderId" class="center-state empty-state">
+    <div v-else-if="!folderId && !notesStore.selectedTag" class="center-state empty-state">
       <el-icon :size="48" color="var(--rh-text-tertiary)"><FolderOpened /></el-icon>
       <p>请从左侧选择一个目录</p>
     </div>
@@ -191,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Loading, FolderOpened, Folder, Document, Plus, ArrowLeft, Check, Upload,
@@ -206,6 +206,11 @@ import WysiwygEditor from './WysiwygEditor.vue'
 
 const props = defineProps<{
   folderId: number | null
+  noteId?: number | null
+}>()
+
+const emit = defineEmits<{
+  'update:noteId': [id: number | null]
 }>()
 
 const notesStore = useNotesStore()
@@ -256,6 +261,8 @@ const noteContextMenu = reactive({
 })
 
 const folderName = computed(() => {
+  // 标签过滤视图（Dashboard 标签云跳转）优先展示标签名
+  if (notesStore.selectedTag) return `标签：${notesStore.selectedTag}`
   for (const cat of categoriesStore.noteCategories) {
     const found = findCategory(cat, props.folderId)
     if (found) return found.name
@@ -274,23 +281,23 @@ function findCategory(cat: any, id: number | null): any {
   return null
 }
 
-// Watch folder changes → fetch notes
+// Watch folder changes → fetch notes（阅读态由 noteId 驱动，此处不再清除选中）
 watch(() => props.folderId, (newId) => {
   if (newId) {
     notesStore.setCategory(newId)
-    clearSelection()
-  } else {
+  } else if (!notesStore.selectedTag) {
+    // 标签过滤视图（无目录）保留已拉取的列表，不清空
     notesStore.notes = []
     notesStore.total = 0
   }
 }, { immediate: true })
 
-async function selectNote(note: Note) {
+// 加载并进入阅读模式（列表接口不返回 content，需按 id 拉全文）
+async function openNote(id: number) {
   isCreating.value = false
   isEditing.value = false
-  // 从 API 获取完整内容（列表接口不返回 content 字段）
   try {
-    await notesStore.fetchNote(note.id)
+    await notesStore.fetchNote(id)
     selectedNote.value = notesStore.currentNote
   } catch {
     ElMessage.error('无法加载笔记')
@@ -298,10 +305,23 @@ async function selectNote(note: Note) {
   }
 }
 
+// Watch external note selection（目录树点击笔记叶子节点）
+watch(() => props.noteId, (newId) => {
+  if (newId == null) {
+    selectedNote.value = null
+    isCreating.value = false
+    isEditing.value = false
+    return
+  }
+  openNote(newId)
+}, { immediate: true })
+
+function selectNote(note: Note) {
+  emit('update:noteId', note.id)
+}
+
 function clearSelection() {
-  selectedNote.value = null
-  isCreating.value = false
-  isEditing.value = false
+  emit('update:noteId', null)
   notesStore.fetchNotes() // 回到列表时刷新
 }
 
@@ -342,6 +362,7 @@ async function handleFileImport(e: Event) {
     })
     ElMessage.success(`已导入「${title}」`)
     notesStore.fetchNotes()
+    notesStore.fetchAllNotes() // 同步目录树的笔记叶子节点
   } catch {
     ElMessage.error('导入失败')
   }
@@ -420,11 +441,13 @@ async function handleFolderImport(e: Event) {
     }
     await categoriesStore.fetchCategories('note')
     await notesStore.fetchNotes()
+    await notesStore.fetchAllNotes() // 同步目录树
     ElMessage.success(`已导入 ${imported} 篇笔记，目录层级已保留`)
   } catch {
     ElMessage.error(`导入中断，已完成 ${imported} 篇笔记`)
     await categoriesStore.fetchCategories('note')
     await notesStore.fetchNotes()
+    await notesStore.fetchAllNotes()
   } finally {
     isImportingFolder.value = false
     importProgress.value = ''
@@ -541,12 +564,12 @@ function closeNoteContextMenu() {
   noteContextMenu.visible = false
 }
 
-function contextEdit() {
+async function contextEdit() {
   const note = noteContextMenu.note
   noteContextMenu.visible = false
   if (!note) return
-  selectNote(note)
-  nextTick(() => startEdit())
+  await openNote(note.id)
+  startEdit()
 }
 
 async function contextTogglePin() {

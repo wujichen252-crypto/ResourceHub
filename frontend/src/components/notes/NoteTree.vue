@@ -12,7 +12,7 @@
       :data="treeData"
       :props="{ children: 'children', label: 'name' }"
       node-key="id"
-      :current-node-key="modelValue"
+      :current-node-key="currentNodeKey"
       :default-expanded-keys="expandedKeys"
       :expand-on-click-node="false"
       highlight-current
@@ -22,10 +22,13 @@
       @node-collapse="handleNodeCollapse"
       class="category-tree"
     >
-      <template #default="{ node }">
+      <template #default="{ data }">
         <span class="tree-node">
-          <el-icon class="folder-icon"><FolderOpened /></el-icon>
-          <span class="node-label">{{ node.label }}</span>
+          <el-icon class="folder-icon" :class="{ 'note-icon': data.isNote }">
+            <Document v-if="data.isNote" />
+            <FolderOpened v-else />
+          </el-icon>
+          <span class="node-label" :class="{ 'note-label': data.isNote }">{{ data.name }}</span>
         </span>
       </template>
     </el-tree>
@@ -86,35 +89,82 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { Plus, FolderOpened } from '@element-plus/icons-vue'
+import { Plus, FolderOpened, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ElTree } from 'element-plus'
 import { useCategoriesStore } from '../../stores/categories'
+import { useNotesStore } from '../../stores/notes'
 import type { CategoryTreeNode } from '../../api/categories'
+
+// 树节点：分类 + 笔记两级混合（笔记为叶子节点）
+interface TreeNode {
+  id: string            // 唯一 key：cat-{id} / note-{id}，避免分类与笔记 id 冲突
+  name: string
+  isNote: boolean
+  categoryId?: number   // 分类节点原始 id
+  noteId?: number       // 笔记节点原始 id
+  children?: TreeNode[]
+}
 
 const props = defineProps<{
   modelValue: number | null
+  selectedNoteId?: number | null
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [id: number | null]
+  'select-note': [noteId: number]
 }>()
 
 const categoriesStore = useCategoriesStore()
+const notesStore = useNotesStore()
 const treeRef = ref<InstanceType<typeof ElTree>>()
 
-// 展开状态 — 数据刷新后恢复，避免折叠
-const expandedKeys = ref<number[]>([])
+// 展开状态 — 数据刷新后恢复，避免折叠（存分类节点 key：cat-{id}）
+const expandedKeys = ref<string[]>([])
 
-const treeData = computed(() => categoriesStore.noteCategories)
+const currentNodeKey = computed(() => {
+  if (props.selectedNoteId) return `note-${props.selectedNoteId}`
+  if (props.modelValue) return `cat-${props.modelValue}`
+  return null
+})
 
-// Context menu state
+// 将分类树与全量笔记合并：每个分类节点的 children = 子分类 + 该分类下的笔记
+const treeData = computed<TreeNode[]>(() => {
+  const notesByCategory = new Map<number, TreeNode[]>()
+  for (const note of notesStore.allNotes) {
+    if (note.category_id == null) continue
+    if (!notesByCategory.has(note.category_id)) {
+      notesByCategory.set(note.category_id, [])
+    }
+    notesByCategory.get(note.category_id)!.push({
+      id: `note-${note.id}`,
+      name: note.title,
+      isNote: true,
+      noteId: note.id,
+    })
+  }
+
+  const mapCategory = (cat: CategoryTreeNode): TreeNode => {
+    const subCats = (cat.children || []).map(mapCategory)
+    const catNotes = notesByCategory.get(cat.id) || []
+    return {
+      id: `cat-${cat.id}`,
+      name: cat.name,
+      isNote: false,
+      categoryId: cat.id,
+      children: [...subCats, ...catNotes],
+    }
+  }
+  return categoriesStore.noteCategories.map(mapCategory)
+})
+
+// Context menu state（仅分类节点支持右键菜单）
 const contextMenu = reactive({
   visible: false,
   x: 0,
   y: 0,
-  node: null as CategoryTreeNode | null,
-  data: null as CategoryTreeNode | null,
+  data: null as TreeNode | null,
 })
 
 // Dialog states
@@ -132,6 +182,7 @@ const isCreatingFolder = ref(false)
 
 onMounted(() => {
   categoriesStore.fetchCategories('note')
+  notesStore.fetchAllNotes()
   document.addEventListener('click', closeContextMenu)
 })
 
@@ -143,25 +194,31 @@ function closeContextMenu() {
   contextMenu.visible = false
 }
 
-function handleNodeClick(data: CategoryTreeNode) {
-  emit('update:modelValue', data.id)
+function handleNodeClick(data: TreeNode) {
+  if (data.isNote && data.noteId != null) {
+    emit('select-note', data.noteId)
+  } else if (data.categoryId != null) {
+    emit('update:modelValue', data.categoryId)
+  }
 }
 
-function handleNodeExpand(data: CategoryTreeNode) {
+function handleNodeExpand(data: TreeNode) {
   if (!expandedKeys.value.includes(data.id)) {
     expandedKeys.value.push(data.id)
   }
 }
 
-function handleNodeCollapse(data: CategoryTreeNode) {
+function handleNodeCollapse(data: TreeNode) {
   expandedKeys.value = expandedKeys.value.filter((k) => k !== data.id)
 }
 
 function handleContextMenu(
   _evt: MouseEvent,
-  data: CategoryTreeNode,
-  _node: any,
+  data: TreeNode,
+  _node: unknown,
 ) {
+  // 笔记叶子节点不提供目录管理菜单
+  if (data.isNote) return
   contextMenu.visible = true
   contextMenu.x = _evt.clientX
   contextMenu.y = _evt.clientY
@@ -176,8 +233,8 @@ async function handleAddRootFolder() {
 
 function handleAddSubFolder() {
   contextMenu.visible = false
-  if (!contextMenu.data) return
-  newFolderDialog.parentId = contextMenu.data.id
+  if (!contextMenu.data?.categoryId) return
+  newFolderDialog.parentId = contextMenu.data.categoryId
   newFolderDialog.name = ''
   newFolderDialog.visible = true
 }
@@ -191,8 +248,9 @@ async function confirmNewFolder() {
   isCreatingFolder.value = true
   try {
     // 先记录展开状态（createCategory 内部会 fetch 刷新树，导致折叠）
-    if (newFolderDialog.parentId && !expandedKeys.value.includes(newFolderDialog.parentId)) {
-      expandedKeys.value.push(newFolderDialog.parentId)
+    const parentKey = `cat-${newFolderDialog.parentId}`
+    if (newFolderDialog.parentId && !expandedKeys.value.includes(parentKey)) {
+      expandedKeys.value.push(parentKey)
     }
     await categoriesStore.createCategory({
       name: newFolderDialog.name.trim(),
@@ -211,8 +269,8 @@ async function confirmNewFolder() {
 
 function handleRename() {
   contextMenu.visible = false
-  if (!contextMenu.data) return
-  renameDialog.id = contextMenu.data.id
+  if (!contextMenu.data?.categoryId) return
+  renameDialog.id = contextMenu.data.categoryId
   renameDialog.name = contextMenu.data.name
   renameDialog.visible = true
 }
@@ -241,21 +299,23 @@ async function confirmRename() {
 async function handleDelete() {
   if (isCreatingFolder.value) return
   contextMenu.visible = false
-  if (!contextMenu.data) return
+  const categoryId = contextMenu.data?.categoryId
+  if (!categoryId) return
 
   try {
     await ElMessageBox.confirm(
-      `确定要删除「${contextMenu.data.name}」及其所有子目录和笔记吗？此操作不可恢复。`,
+      `确定要删除「${contextMenu.data!.name}」及其所有子目录和笔记吗？此操作不可恢复。`,
       '确认删除',
       { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
     )
     isCreatingFolder.value = true
-    await categoriesStore.deleteCategory(contextMenu.data.id, 'note')
+    await categoriesStore.deleteCategory(categoryId, 'note')
     ElMessage.success('已删除')
-    if (props.modelValue === contextMenu.data.id) {
+    if (props.modelValue === categoryId) {
       emit('update:modelValue', null)
     }
     await categoriesStore.fetchCategories('note')
+    await notesStore.fetchAllNotes() // 级联删除的笔记需同步出树
   } catch {
     // cancelled or error
   } finally {
@@ -304,6 +364,16 @@ async function handleDelete() {
   color: var(--rh-text-tertiary);
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.note-icon {
+  font-size: 14px;
+  color: var(--rh-text-secondary);
+}
+
+.note-label {
+  font-size: 13px;
+  color: var(--rh-text-secondary);
 }
 
 .node-label {

@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.response import error_response, APIError
 from app.core.errors import ErrorCode
-from app.routers import auth, notes, prompts, categories
+from app.routers import auth, notes, prompts, categories, stats
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +62,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(notes.router, prefix="/api/notes", tags=["笔记"])
 app.include_router(prompts.router, prefix="/api/prompts", tags=["提示词"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
+app.include_router(stats.router, prefix="/api/stats", tags=["统计"])
 
 
 @app.get("/health")
