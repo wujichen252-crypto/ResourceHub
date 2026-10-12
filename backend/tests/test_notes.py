@@ -1,9 +1,10 @@
 """笔记模块回归测试 — 锁定列表/详情序列化契约（preview 剥 HTML、tags JSON 解码、category_name 富化）"""
 
 NOTE_FIELDS = {"id", "title", "content_preview", "category_id", "category_name",
-               "tags", "is_pinned", "created_at", "updated_at"}
+               "tags", "is_pinned", "visibility", "created_at", "updated_at"}
 DETAIL_FIELDS = {"id", "title", "content", "category_id", "category_name",
-                 "tags", "is_pinned", "created_at", "updated_at"}
+                 "tags", "is_pinned", "visibility", "source_username",
+                 "created_at", "updated_at"}
 
 
 def _create_note(client, auth, category_id=None, **kw):

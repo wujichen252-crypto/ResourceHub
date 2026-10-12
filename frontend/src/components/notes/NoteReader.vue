@@ -9,6 +9,15 @@
           <el-icon><Top /></el-icon>
           {{ note.is_pinned ? '取消置顶' : '置顶' }}
         </el-button>
+        <el-button
+          size="small"
+          :type="note.visibility === 'public' ? 'warning' : 'success'"
+          :loading="publishing"
+          @click="$emit('togglePublish')"
+        >
+          <el-icon><Promotion /></el-icon>
+          {{ note.visibility === 'public' ? '取消发布' : '发布到广场' }}
+        </el-button>
         <el-button size="small" type="primary" @click="$emit('edit')">
           <el-icon><Edit /></el-icon> 编辑
         </el-button>
@@ -45,7 +54,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowLeft, Top, Edit, Delete } from '@element-plus/icons-vue'
+import { ArrowLeft, Top, Edit, Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
@@ -55,6 +64,7 @@ const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
 
 const props = defineProps<{
   note: Note
+  publishing?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -62,6 +72,7 @@ const emit = defineEmits<{
   edit: []
   'delete': [id: number]
   'togglePin': [id: number]
+  togglePublish: []
 }>()
 
 function isHtml(str: string): boolean {

@@ -22,11 +22,16 @@
       @node-collapse="handleNodeCollapse"
       class="category-tree"
     >
-      <template #default="{ data }">
+      <template #default="{ node, data }">
         <span class="tree-node">
-          <el-icon class="folder-icon" :class="{ 'note-icon': data.isNote }">
+          <el-icon
+            class="folder-icon"
+            :class="{ 'note-icon': data.isNote, expandable: !data.isNote && node.isLeaf === false }"
+            @click="handleIconToggle($event, node, data)"
+          >
             <Document v-if="data.isNote" />
-            <FolderOpened v-else />
+            <FolderOpened v-else-if="node.expanded" />
+            <Folder v-else />
           </el-icon>
           <span class="node-label" :class="{ 'note-label': data.isNote }">{{ data.name }}</span>
         </span>
@@ -89,9 +94,10 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { Plus, FolderOpened, Document } from '@element-plus/icons-vue'
+import { Plus, Folder, FolderOpened, Document } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ElTree } from 'element-plus'
+import type Node from 'element-plus/es/components/tree/src/model/node'
 import { useCategoriesStore } from '../../stores/categories'
 import { useNotesStore } from '../../stores/notes'
 import type { CategoryTreeNode } from '../../api/categories'
@@ -199,6 +205,17 @@ function handleNodeClick(data: TreeNode) {
     emit('select-note', data.noteId)
   } else if (data.categoryId != null) {
     emit('update:modelValue', data.categoryId)
+  }
+}
+
+// 点击文件夹图标 → 展开/收起整个子树（无需逐个收起下级）
+function handleIconToggle(evt: MouseEvent, node: Node, data: TreeNode) {
+  evt.stopPropagation()
+  if (data.isNote || node.isLeaf) return
+  if (node.expanded) {
+    node.collapse()
+  } else {
+    node.expand()
   }
 }
 
@@ -364,6 +381,15 @@ async function handleDelete() {
   color: var(--rh-text-tertiary);
   font-size: 16px;
   flex-shrink: 0;
+}
+
+/* 可折叠的文件夹图标：明确可点击 */
+.folder-icon.expandable {
+  cursor: pointer;
+}
+
+.folder-icon.expandable:hover {
+  color: var(--rh-primary);
 }
 
 .note-icon {

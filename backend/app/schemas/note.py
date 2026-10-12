@@ -29,6 +29,7 @@ class NoteListResponse(BaseModel):
     category_name: str | None = None
     tags: JsonList
     is_pinned: bool
+    visibility: str = "private"
     created_at: datetime
     updated_at: datetime
 
@@ -59,6 +60,8 @@ class NoteDetailResponse(BaseModel):
     category_name: str | None = None
     tags: JsonList
     is_pinned: bool
+    visibility: str = "private"
+    source_username: str | None = None
     created_at: datetime
     updated_at: datetime
 

@@ -17,6 +17,14 @@
             <el-button @click="showVersionDrawer = true">
               <el-icon><Clock /></el-icon> 历史版本
             </el-button>
+            <el-button
+              :type="prompt.visibility === 'public' ? 'warning' : 'success'"
+              @click="togglePublish"
+              :loading="publishing"
+            >
+              <el-icon><Promotion /></el-icon>
+              {{ prompt.visibility === 'public' ? '取消发布' : '发布到广场' }}
+            </el-button>
             <el-button type="primary" @click="editPrompt">
               <el-icon><Edit /></el-icon> 编辑
             </el-button>
@@ -181,9 +189,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, Star, StarFilled, Edit, Delete, Clock,
-  CopyDocument, MagicStick, Select,
+  CopyDocument, MagicStick, Select, Promotion,
 } from '@element-plus/icons-vue'
 import { usePromptsStore } from '../../stores/prompts'
+import { plazaApi } from '../../api/plaza'
 import { renderTemplate } from '../../utils/render'
 import VersionHistoryPanel from '../../components/prompts/VersionHistoryPanel.vue'
 
@@ -197,6 +206,7 @@ const renderedResult = ref('')
 const hasUsed = ref(false)
 const livePreview = ref(false)
 const showVersionDrawer = ref(false)
+const publishing = ref(false)
 const selectedPresetId = ref<number | null>(null)
 const variableValues = reactive<Record<string, string>>({})
 
@@ -270,6 +280,27 @@ async function toggleFav() {
     ElMessage.success(prompt.value.is_favorite ? '已收藏' : '已取消收藏')
   } catch {
     ElMessage.error('操作失败')
+  }
+}
+
+async function togglePublish() {
+  if (!prompt.value) return
+  publishing.value = true
+  try {
+    const isPublic = prompt.value.visibility === 'public'
+    if (isPublic) {
+      await plazaApi.unpublish('prompt', prompt.value.id)
+      prompt.value.visibility = 'private'
+      ElMessage.success('已从资源广场取消发布')
+    } else {
+      await plazaApi.publish('prompt', prompt.value.id)
+      prompt.value.visibility = 'public'
+      ElMessage.success('已发布到资源广场，团队成员可见')
+    }
+  } catch {
+    ElMessage.error('操作失败')
+  } finally {
+    publishing.value = false
   }
 }
 

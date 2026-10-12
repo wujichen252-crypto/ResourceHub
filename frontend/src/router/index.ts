@@ -59,6 +59,18 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/plaza',
+    name: 'Plaza',
+    component: () => import('../views/Plaza.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/plaza/:type(note|prompt)/:id(\\d+)',
+    name: 'PlazaDetail',
+    component: () => import('../views/PlazaDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue'),

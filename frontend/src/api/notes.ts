@@ -9,6 +9,8 @@ export interface Note {
   category_name: string | null
   tags: string[]
   is_pinned: boolean
+  visibility?: 'private' | 'public'
+  source_username?: string | null
   created_at: string
   updated_at: string
 }

@@ -36,6 +36,7 @@ class PromptListResponse(BaseModel):
     tags: JsonList = []
     is_favorite: bool
     usage_count: int
+    visibility: str = "private"
     created_at: datetime
     updated_at: datetime
 
@@ -53,6 +54,8 @@ class PromptDetailResponse(BaseModel):
     tags: JsonList = []
     is_favorite: bool
     usage_count: int
+    visibility: str = "private"
+    source_username: str | None = None
     created_at: datetime
     updated_at: datetime
 

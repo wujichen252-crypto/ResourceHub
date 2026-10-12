@@ -40,6 +40,11 @@ class ErrorCode(IntEnum):
     VERSION_NOT_FOUND = 4002
     PRESET_NOT_FOUND = 4003
 
+    PLAZA_ITEM_NOT_FOUND = 5001
+    INVALID_CONTENT_TYPE = 5002
+
+    CANNOT_REACT_OWN_NOTE = 6001
+
 
 ERROR_MESSAGES = {
     ErrorCode.SUCCESS: "操作成功",
@@ -63,6 +68,8 @@ ERROR_MESSAGES = {
     ErrorCode.PROMPT_NOT_FOUND: "提示词不存在",
     ErrorCode.VERSION_NOT_FOUND: "版本不存在",
     ErrorCode.PRESET_NOT_FOUND: "预设不存在",
+    ErrorCode.PLAZA_ITEM_NOT_FOUND: "广场内容不存在或未发布",
+    ErrorCode.INVALID_CONTENT_TYPE: "内容类型无效",
 }
 
 

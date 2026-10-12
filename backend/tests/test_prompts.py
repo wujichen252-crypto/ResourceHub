@@ -1,9 +1,9 @@
 """提示词模块回归测试 — 锁定版本/预设/渲染/统计契约"""
 
 PROMPT_LIST_FIELDS = {"id", "title", "description", "category_id", "category_name",
-                      "variables", "tags", "is_favorite", "usage_count",
+                      "variables", "tags", "is_favorite", "usage_count", "visibility",
                       "created_at", "updated_at"}
-PROMPT_DETAIL_FIELDS = PROMPT_LIST_FIELDS | {"content"}
+PROMPT_DETAIL_FIELDS = PROMPT_LIST_FIELDS | {"content", "source_username"}
 VERSION_FIELDS = {"id", "prompt_id", "version_number", "title", "description",
                   "content", "variables", "tags", "message", "labels",
                   "branch_name", "created_at"}

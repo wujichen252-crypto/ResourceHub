@@ -148,10 +148,12 @@
     <div v-else-if="selectedNote && !isEditing" class="reader-view">
       <NoteReader
         :note="selectedNote"
+        :publishing="publishing"
         @back="clearSelection"
         @edit="startEdit"
         @delete="handleDelete"
         @toggle-pin="handleTogglePin"
+        @toggle-publish="handleTogglePublish"
       />
     </div>
   </div>
@@ -198,6 +200,7 @@ import {
 } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import { notesApi } from '../../api/notes'
+import { plazaApi } from '../../api/plaza'
 import { useNotesStore } from '../../stores/notes'
 import { useCategoriesStore } from '../../stores/categories'
 import type { Note } from '../../api/notes'
@@ -547,6 +550,30 @@ async function handleDelete(id: number) {
 
 async function handleTogglePin(id: number) {
   await notesStore.togglePin(id)
+}
+
+const publishing = ref(false)
+
+async function handleTogglePublish() {
+  const note = selectedNote.value
+  if (!note) return
+  publishing.value = true
+  try {
+    const isPublic = note.visibility === 'public'
+    if (isPublic) {
+      await plazaApi.unpublish('note', note.id)
+      note.visibility = 'private'
+      ElMessage.success('已从资源广场取消发布')
+    } else {
+      await plazaApi.publish('note', note.id)
+      note.visibility = 'public'
+      ElMessage.success('已发布到资源广场，团队成员可见')
+    }
+  } catch {
+    ElMessage.error('操作失败')
+  } finally {
+    publishing.value = false
+  }
 }
 
 function handlePageChange(p: number) {

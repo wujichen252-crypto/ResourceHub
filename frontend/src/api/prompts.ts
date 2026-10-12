@@ -11,6 +11,8 @@ export interface Prompt {
   tags: string[]
   is_favorite: boolean
   usage_count: number
+  visibility?: 'private' | 'public'
+  source_username?: string | null
   created_at: string
   updated_at: string
 }

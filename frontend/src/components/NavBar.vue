@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowDown, Collection, Document, MagicStick, Menu, Monitor, Moon, Plus, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
+import { ArrowDown, Collection, Document, Grid, MagicStick, Menu, Monitor, Moon, Plus, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { usePromptsStore } from '../stores/prompts'
@@ -62,8 +62,8 @@ import { usePromptsStore } from '../stores/prompts'
 const router = useRouter(); const route = useRoute(); const authStore = useAuthStore(); const promptsStore = usePromptsStore()
 const userMenuOpen = ref(false); const mobileOpen = ref(false)
 const isDark = ref(document.documentElement.getAttribute('data-theme') === 'dark')
-const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }]
-const activeIndex = computed(() => route.path.startsWith('/notes') ? '/notes' : route.path.startsWith('/prompts') ? '/prompts' : route.path.startsWith('/settings') ? '/settings' : '/dashboard')
+const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }, { path: '/plaza', label: '资源广场', icon: Grid }]
+const activeIndex = computed(() => route.path.startsWith('/notes') ? '/notes' : route.path.startsWith('/prompts') ? '/prompts' : route.path.startsWith('/plaza') ? '/plaza' : route.path.startsWith('/settings') ? '/settings' : '/dashboard')
 const avatarText = computed(() => (authStore.user?.username || '用户').charAt(0).toUpperCase())
 const themeLabel = computed(() => isDark.value ? '切换至浅色模式' : '切换至深色模式')
 
