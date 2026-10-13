@@ -1,6 +1,6 @@
 # 复制为 deploy.config.local.ps1，并填写你的服务器信息。此文件不会入库。
 $DeployConfig = @{
-    ServerHost = "47.108.232.238"
+    ServerHost = "162.14.111.9"
     ServerUser = "root"
     ServerPath = "/opt/resourcehub"
     Branch = "main"

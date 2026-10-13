@@ -14,8 +14,8 @@
 
 ### 数据库二选一
 
-- **方案 A（复用现有远端 MySQL，推荐）**：继续使用 47.108.232.238 上的 `resourcehub` 库，数据现成、无需迁移。
-  前提：在 MySQL 侧把**新服务器公网 IP** 加入 `resourcehub` 账号白名单（1Panel 旧服务器若也装了 MySQL 同理）。
+- **方案 A（复用现有远端 MySQL，推荐）**：继续使用 162.14.111.9 上的 `resourcehub` 库（与本地开发连接的是同一个库），数据现成、无需迁移。
+  前提：在 MySQL 侧把**新服务器公网 IP** 加入 `resourcehub` 账号白名单。
 - **方案 B（新服务器用 1Panel 应用商店装 MySQL）**：面板 → 应用商店 → 安装 MySQL，再建 `resourcehub` 库。
   如需带走旧数据：本地 `cd backend`，把 `.env` 的 `DATABASE_URL` 临时指向新库，运行 `uv run python migrate_to_remote.py`（详见 docs/database-migration.md）。
 
@@ -62,7 +62,7 @@ chmod 600 .env.production
 ```
 
 MySQL 地址怎么填：
-- 方案 A：填远端 MySQL 的 IP（如 `47.108.232.238`）
+- 方案 A：填远端 MySQL 的 IP（`162.14.111.9`）
 - 方案 B（本机 1Panel MySQL）：填服务器**内网 IP**（面板 → 主机 → 信息），不要用 `localhost`——容器内的 localhost 不是宿主机
 
 ✅ 验证：`cat .env.production` 两项都已填真实值；先测连通：

@@ -120,4 +120,4 @@ sudo cp scripts/deploy/webhook-deploy.py /opt/ResourceHub/scripts/deploy/
 | backend 反复重启，日志数据库连接超时 | MySQL 白名单/防火墙未放行本服务器 IP | 授权后 `docker compose restart backend` |
 | 页面能开但接口 502 | backend 容器未起来 | `docker compose logs backend` |
 | 接口 404/数据为空 | 未跑迁移 | 执行第 4 步 |
-| 旧文档中的服务器 IP（162.14.111.9）与新服务器不符 | 历史部署记录 | 以本指南为准 |
+| MySQL 连不上 | 白名单未放行本服务器 IP | 在 162.14.111.9 的 MySQL 上授权新服务器 IP |

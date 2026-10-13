@@ -6,7 +6,7 @@
 ## Project Overview
 
 - **Name:** ResourceHub（资源整合中心）
-- **Stack:** Vue 3 + TypeScript / Python FastAPI / SQLAlchemy 2.0 / MySQL 5.7（远端 47.108.232.238，2026-09-17 起；SQLite 已迁移，本地留档）
+- **Stack:** Vue 3 + TypeScript / Python FastAPI / SQLAlchemy 2.0 / MySQL 5.7（远端 162.14.111.9；SQLite 已迁移，本地留档）
 - **Description:** 个人知识管理与 AI 提示词管理的一体化工具。面向开发者、AI 使用者、知识工作者，提供笔记整理 + AI 提示词库两大核心功能。
 - **Entry:** `backend/main.py`（后端）/ `frontend/src/main.ts`（前端）
 
@@ -99,7 +99,7 @@ ResourceHub/
 ### 数据流
 
 ```
-前端 (Vite:5173)  →  Axios  →  后端 (FastAPI:8800)  →  SQLAlchemy(aiomysql)  →  MySQL 5.7 (47.108.232.238/resourcehub)
+前端 (Vite:5173)  →  Axios  →  后端 (FastAPI:8800)  →  SQLAlchemy(aiomysql)  →  MySQL 5.7 (162.14.111.9/resourcehub)
        ↑                              ↑
   Element Plus UI               JWT 认证中间件
   Pinia 状态管理                Pydantic 数据校验
