@@ -27,11 +27,14 @@ async def lifespan(app: FastAPI):
         logger.info("生产环境：跳过 create_all，schema 变更请使用 `alembic upgrade head`")
     else:
         try:
-            async with asyncio.timeout(8):
+            # Python 3.10 无 asyncio.timeout（3.11+ 才有），改用 wait_for 兼容
+            async def _create_tables():
                 async with engine.begin() as conn:
                     from app.models import user, note, prompt, category  # noqa
                     await conn.run_sync(Base.metadata.create_all)
-        except TimeoutError:
+
+            await asyncio.wait_for(_create_tables(), timeout=8)
+        except asyncio.TimeoutError:
             logger.warning("数据库初始化超时，服务继续启动；请检查 DATABASE_URL 和 MySQL 网络连通性")
         except Exception:
             logger.exception("数据库初始化失败，服务继续启动；登录和数据接口需要数据库可用")
