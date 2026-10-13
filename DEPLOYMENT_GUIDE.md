@@ -9,7 +9,7 @@
 docker --version && docker compose version   # 需要 compose v2
 ```
 
-- [ ] 安全组/防火墙放行：`80`（前端）、`9000`（可选 webhook）；`8000` 无需公网暴露
+- [ ] 安全组/防火墙放行：`9200`（前端对外端口）、`9000`（可选 webhook）；`8000` 无需公网暴露
 - [ ] MySQL 可达：远端 MySQL 需允许本服务器 IP 连接（在 MySQL 侧授权 `resourcehub` 账号）
 - [ ] 端口连通性预检（把 host/3306 换成你的实际值）：
   ```bash
@@ -82,11 +82,11 @@ sudo docker compose exec backend alembic stamp head
 ## 5. 端到端验证
 
 ```bash
-curl http://127.0.0.1/health          # 经前端 nginx 反代到后端
-curl http://127.0.0.1/api/auth/login  # 预期 405/422（路由存在即通），非 502
+curl http://127.0.0.1:9200/health          # 经前端 nginx 反代到后端
+curl http://127.0.0.1:9200/api/auth/login  # 预期 405/422（路由存在即通），非 502
 ```
 
-浏览器打开 `http://<服务器IP>`：登录页正常渲染，注册/登录成功即部署完成。
+浏览器打开 `http://<服务器IP>:9200`：登录页正常渲染，注册/登录成功即部署完成。
 
 ## 6. 日常更新
 

@@ -19,21 +19,25 @@
 - **方案 B（新服务器用 1Panel 应用商店装 MySQL）**：面板 → 应用商店 → 安装 MySQL，再建 `resourcehub` 库。
   如需带走旧数据：本地 `cd backend`，把 `.env` 的 `DATABASE_URL` 临时指向新库，运行 `uv run python migrate_to_remote.py`（详见 docs/database-migration.md）。
 
-## 第 1 步：端口冲突检查（1Panel 环境最容易踩的坑）
+## 第 1 步：端口占用检查
 
-1Panel 的 OpenResty（网站功能）默认占用 **80/443**，而本项目 compose 的 frontend 也要映射 80，直接启动会报 `port is already allocated`。
+本项目 compose 实际映射：**前端 9200**（容器内 nginx 80）、**后端 8000**。1Panel 的 OpenResty 占用 80 与本部署**不冲突**。
 
 面板 → 主机 → 终端（或 SSH），执行：
 
 ```bash
-ss -tlnp | grep -E ':(80|8000)\s'
+ss -tlnp | grep -E ':(9200|8000)\s'
+docker ps   # 查看是否有旧部署残留容器
 ```
 
-- **80 被 OpenResty 占用且你要用网站功能** → 改端口映射：编辑 `/opt/ResourceHub/docker-compose.yml`，把 frontend 的 `ports` 改为 `- "8080:80"`，之后通过 1Panel 网站反向代理或直接用 `http://IP:8080` 访问。
-- **80 空闲** → 保持原样，部署后用 `http://IP` 访问。
-- 8000 同理，被占就把 backend 映射改成 `127.0.0.1:8001:8000`（后端无需公网暴露，仅供前端反代）。
+- **8000 或 9200 被旧 resourcehub 容器占用**（常见：之前试验性部署过）→ 先清理：
+  ```bash
+  docker rm -f resourcehub-backend resourcehub-frontend 2>/dev/null
+  ```
+- **被其他无关容器占用** → 编辑 `docker-compose.yml` 改宿主机侧映射（如 `"8001:8000"`），并把 `deploy.sh` 健康检查中的 8000 同步改掉。
+- 若希望用 80 直接访问：保持 compose 不动，在 1Panel 网站中用 OpenResty 反向代理到 `127.0.0.1:9200` 即可。
 
-✅ 验证：记下最终对外端口（下文用 `<WEB_PORT>` 指代，默认 80）。
+✅ 验证：`ss -tlnp` 中 9200、8000 无残留占用。
 
 ## 第 2 步：拉取代码
 
@@ -103,10 +107,10 @@ sudo docker compose exec backend alembic current   # 输出 head 即成功
 ## 第 6 步：端到端验收
 
 ```bash
-curl http://127.0.0.1:<WEB_PORT>/health            # 经 nginx 反代到后端，返回 JSON 即通
+curl http://127.0.0.1:9200/health            # 经前端 nginx 反代到后端，返回 JSON 即通
 ```
 
-浏览器打开 `http://<服务器IP>:<WEB_PORT>`：
+浏览器打开 `http://<服务器IP>:9200`：
 - [ ] 登录页正常渲染（黑白极简界面）
 - [ ] 注册或登录成功
 - [ ] Dashboard 统计图表、笔记/提示词列表能加载出旧数据（方案 A）
