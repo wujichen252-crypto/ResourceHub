@@ -6,7 +6,8 @@ cd "$(dirname "$0")/../.."
 git fetch origin main
 git checkout main
 git reset --hard origin/main
-docker compose up -d --build --remove-orphans
+# 显式指定生产环境文件，避免依赖默认 .env 查找
+docker compose --env-file .env.production up -d --build --remove-orphans
 docker compose ps
 curl --fail --silent --show-error http://127.0.0.1:9200/health >/dev/null
 echo "ResourceHub 部署完成"
