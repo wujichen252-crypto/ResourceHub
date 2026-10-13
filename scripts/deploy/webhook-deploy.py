@@ -14,7 +14,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 GITHUB_SECRET = os.environ.get('GITHUB_WEBHOOK_SECRET', '')
-DEPLOY_SCRIPT = '/opt/ResourceHub/deploy.sh'
+DEPLOY_SCRIPT = '/opt/ResourceHub/scripts/deploy/deploy.sh'
 LOG_FILE = '/var/log/webhook-deploy.log'
 
 def log_event(message):

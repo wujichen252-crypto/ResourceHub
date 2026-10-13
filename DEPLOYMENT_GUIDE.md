@@ -6,8 +6,8 @@
 - ✅ 创建了 `.env.production` 文件
   - `SERVER_IP=162.14.111.9`
   - `DOMAIN=162.14.111.9`
-- ✅ 创建了自动部署脚本: `/opt/ResourceHub/deploy.sh`
-- ✅ 创建了 GitHub Webhook 接收服务: `/opt/ResourceHub/webhook-deploy.py`
+- ✅ 创建了自动部署脚本: `/opt/ResourceHub/scripts/deploy/deploy.sh`
+- ✅ 创建了 GitHub Webhook 接收服务: `/opt/ResourceHub/scripts/deploy/webhook-deploy.py`
 - ✅ 启动了 Webhook 服务 (监听端口 9000)
 
 ## 📝 需要在 GitHub 中配置的步骤

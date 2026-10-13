@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-cd "$(dirname "$0")"
+# 脚本位于 scripts/deploy/，回到仓库根目录执行 git 与 docker compose
+cd "$(dirname "$0")/../.."
 git fetch origin main
 git checkout main
 git reset --hard origin/main

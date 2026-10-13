@@ -23,7 +23,7 @@ uv sync
 uv run uvicorn main:app --reload --host 127.0.0.1 --port 8800
 
 # 运行测试
-uv run pytest test_api.py -v
+uv run pytest -v
 
 # 启动完整服务（Docker）
 docker compose up --build
@@ -66,6 +66,9 @@ ResourceHub/
 │   │   │   └── categories.py   # 分类管理
 │   ├── pyproject.toml        # uv 项目依赖声明
 │   ├── uv.lock               # 锁定版本
+│   ├── docs/                 # 后端模块文档（API/架构/数据库设计）
+│   ├── migrations/           # Alembic 迁移（生产 schema 管辖）
+│   ├── tests/                # pytest 测试套件
 │   └── Dockerfile
 ├── frontend/                   # Vue 3 + TypeScript 前端
 │   ├── src/
@@ -79,13 +82,17 @@ ResourceHub/
 │   │   │   ├── Dashboard.vue
 │   │   │   ├── Settings.vue
 │   │   │   ├── Notes/          # 笔记模块页面
-│   │   │   └── Prompts/        # 提示词模块页面
+│   │   │   ├── Prompts/        # 提示词模块页面
+│   │   │   └── Plaza.vue       # 资源广场
 │   │   ├── components/         # 共享组件
 │   │   └── styles/             # 全局样式
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── Dockerfile
-├── docker-compose.yml          # 全局编排
+├── scripts/deploy/             # 部署脚本（deploy.sh / deploy.ps1 / webhook-deploy.py 等）
+├── docs/                       # 项目级归档文档（数据库迁移等）
+├── docker-compose.yml          # 全局编排（唯一 compose 入口）
+├── DEPLOYMENT_GUIDE.md         # 部署指南
 └── .gitignore
 ```
 
@@ -115,14 +122,14 @@ ResourceHub/
 
 ## Memory Bank
 
-This project uses Codex-*.md files to retain context across sessions:
+This project uses CLAUDE-*.md files to retain context across sessions:
 
 | File | Read When |
 |------|-----------|
-| `Codex-activeContext.md` | Session start — current state and goals |
-| `Codex-patterns.md` | Before implementing — code patterns |
-| `Codex-decisions.md` | Before design choices — architecture ADRs |
-| `Codex-troubleshooting.md` | When debugging — known issues and fixes |
+| `CLAUDE-activeContext.md` | Session start — current state and goals |
+| `CLAUDE-patterns.md` | Before implementing — code patterns |
+| `CLAUDE-decisions.md` | Before design choices — architecture ADRs |
+| `CLAUDE-troubleshooting.md` | When debugging — known issues and fixes |
 
 All optional — check existence first. Update after significant work.
 
@@ -132,4 +139,4 @@ All optional — check existence first. Update after significant work.
 |-------|----------|-------|----------------|
 | Core rules | This file | Always | No |
 | Auto memory | `memory/MEMORY.md` | Always (first 200 lines) | Yes |
-| Memory bank | Codex-*.md | On demand | No — mirrored to auto memory |
+| Memory bank | CLAUDE-*.md | On demand | No — mirrored to auto memory |
