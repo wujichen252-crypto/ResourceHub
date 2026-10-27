@@ -6,10 +6,6 @@
     <title>ResourceHub - 资源整合中心</title>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
 
-    <!-- Preload Inter font for critical render path -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-
     <!-- Prevent flash of wrong theme before Vue mounts -->
     <script>
       (function() {
@@ -18,6 +14,8 @@
           var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var theme = stored === 'dark' ? 'dark' : stored === 'light' ? 'light' : (systemDark ? 'dark' : 'light');
           document.documentElement.setAttribute('data-theme', theme);
+          // 同步 Element Plus 官方深色变量所需的 html.dark 类，避免首屏出现浅色组件
+          document.documentElement.classList.toggle('dark', theme === 'dark');
         } catch(e) {}
       })();
     </script>

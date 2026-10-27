@@ -1,6 +1,6 @@
 <template>
   <Transition name="fade-slide" appear>
-    <div class="prompt-editor-page animate-fade-in-up">
+    <div class="rh-page rh-page--narrow animate-fade-in-up">
       <div class="editor-header">
       <div class="editor-header-left">
         <el-button text @click="goBack">
@@ -133,9 +133,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Check } from '@element-plus/icons-vue'
 import { usePromptsStore } from '../../stores/prompts'
 import { useCategoriesStore } from '../../stores/categories'
@@ -238,6 +238,42 @@ const flatCategories = computed(() => {
   return flatten(categoriesStore.promptCategories)
 })
 
+/** 已保存内容的快照（JSON 字符串），用于判断是否存在未保存修改 */
+const savedSnapshot = ref('')
+function takeSnapshot(): string {
+  return JSON.stringify({
+    title: form.title,
+    description: form.description,
+    content: form.content,
+    category_id: form.category_id,
+    tags: form.tags,
+    is_favorite: form.is_favorite,
+  })
+}
+const isDirty = computed(() => savedSnapshot.value !== '' && takeSnapshot() !== savedSnapshot.value)
+
+/** 关闭标签页 / 刷新时拦截未保存的修改 */
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (!isDirty.value) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+
+// 路由离开时拦截未保存的修改
+onBeforeRouteLeave(async () => {
+  if (!isDirty.value) return true
+  try {
+    await ElMessageBox.confirm('当前修改尚未保存，确定离开吗？', '未保存的修改', {
+      confirmButtonText: '放弃修改',
+      cancelButtonText: '继续编辑',
+      type: 'warning',
+    })
+    return true
+  } catch {
+    return false
+  }
+})
+
 function detectVariables() {
   const matches = form.content.match(/\{\{(\w+)\}\}/g)
   if (matches) {
@@ -253,6 +289,7 @@ function removeVariable(v: string) {
 }
 
 onMounted(async () => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
   await categoriesStore.fetchCategories('prompt')
 
   if (!isNew.value) {
@@ -271,8 +308,15 @@ onMounted(async () => {
     } catch {
       ElMessage.error('提示词不存在')
       router.push('/prompts')
+      return
     }
   }
+  // 载入完成后再记录基线快照，避免刚打开就被判定为未保存
+  savedSnapshot.value = takeSnapshot()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
 function goBack() {
@@ -309,6 +353,8 @@ async function savePrompt() {
       await promptsStore.updatePrompt(Number(route.params.id), data)
       ElMessage.success('提示词已保存')
     }
+    // 保存成功后清除脏标记，避免跳转时被"未保存"拦截
+    savedSnapshot.value = takeSnapshot()
     router.push('/prompts')
   } catch {
     ElMessage.error('保存失败')
@@ -319,12 +365,6 @@ async function savePrompt() {
 </script>
 
 <style scoped>
-.prompt-editor-page {
-  padding: 32px 40px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
 .editor-header {
   display: flex;
   justify-content: space-between;
@@ -341,8 +381,10 @@ async function savePrompt() {
 }
 
 .editor-title {
+  font-family: var(--rh-font-display);
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--rh-text-primary);
   margin: 0;
 }
@@ -356,21 +398,25 @@ async function savePrompt() {
   width: 100%;
 }
 
-/* 让编辑器内容区占满宽度 */
+/* 变量高亮层与透明 textarea 叠放的外层容器 */
 .var-editor-wrap {
+  position: relative;
   width: 100%;
+  border: 1px solid var(--rh-border);
+  border-radius: var(--rh-radius-md);
+  overflow: hidden;
+  min-height: 480px;
+  transition: var(--rh-transition-all-normal);
 }
 
 .var-textarea {
   width: 100% !important;
 }
 
-.var-editor-wrap {
-  position: relative;
-  border: 1px solid var(--rh-border);
-  border-radius: 8px;
-  overflow: hidden;
-  min-height: 480px;
+/* 内部 textarea 为透明层，焦点状态统一由外层容器表达（原 outline: none 会完全隐藏焦点） */
+.var-editor-wrap:focus-within {
+  border-color: var(--rh-primary);
+  box-shadow: var(--rh-focus-ring);
 }
 
 .var-highlight {
@@ -406,17 +452,12 @@ async function savePrompt() {
   background: transparent;
   color: transparent;
   caret-color: var(--rh-text-primary);
-  outline: none;
   overflow-y: auto;
   box-sizing: border-box;
 }
 
 .var-textarea::placeholder {
   color: var(--rh-text-placeholder);
-}
-
-.var-textarea:focus {
-  border-color: var(--rh-primary);
 }
 
 .detected-vars {
@@ -426,6 +467,8 @@ async function savePrompt() {
   margin-bottom: 8px;
   align-items: center;
   min-height: 28px;
+  /* el-form-item__content 是 flex 容器，占满整行，避免与下方「添加变量」行挤在同一行导致上下错位 */
+  flex: 0 0 100%;
 }
 
 .var-tag {
@@ -445,6 +488,7 @@ async function savePrompt() {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex: 0 0 100%;
 }
 
 .var-tag.clickable {

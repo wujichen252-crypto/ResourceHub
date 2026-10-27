@@ -83,6 +83,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
+
+    // 清空 AI 工作台会话，避免下一个账号看到上一个账号的对话；
+    // 动态导入是为了避免与 aiWorkspace → api → http 形成循环依赖
+    void import('./aiWorkspace').then(({ useAIWorkspaceStore }) => {
+      useAIWorkspaceStore().reset()
+    })
   }
 
   return {

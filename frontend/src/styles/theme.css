@@ -1,42 +1,86 @@
-/* ResourceHub - 编辑室工作台主题 */
+/* ResourceHub - 编辑室工作台主题
+ * 颜色对比度说明：所有承载文字的令牌均按 WCAG 2.1 AA（正文 4.5:1）校准，
+ * 校验基准为 --rh-bg-base(#f5f3ee) 与 --rh-bg-card(#fbfaf6)。
+ */
 
 :root {
-  --rh-primary: #e85d3f; --rh-primary-hover: #c84931; --rh-primary-active: #a93c28;
-  --rh-primary-subtle: rgba(232, 93, 63, 0.1); --rh-primary-muted: rgba(232, 93, 63, 0.18);
-  --rh-ai: #b7d84b; --rh-ai-strong: #789415; --rh-success: #3f8f6b; --rh-warning: #c8892e; --rh-danger: #c64949; --rh-info: #788079;
-  --rh-bg-base: #f5f3ee; --rh-bg-card: #fbfaf6; --rh-bg-elevated: #fffef9; --rh-bg-overlay: rgba(28, 31, 28, 0.46); --rh-bg-inset: #ebe9e1; --rh-bg-hover: #eeece5; --rh-bg-active: #e5e3d9;
-  --rh-text-primary: #20231f; --rh-text-secondary: #5c625b; --rh-text-tertiary: #8b9087; --rh-text-placeholder: #b4b8ae; --rh-text-inverse: #fffef9;
-  --rh-border: #d9d8cf; --rh-border-strong: #b8b9ad; --rh-border-faint: #e9e7df; --rh-divider: #e1e0d7;
+  --rh-primary: #b03c22; --rh-primary-hover: #96301a; --rh-primary-active: #7f2714;
+  --rh-primary-subtle: rgba(176, 60, 34, 0.1); --rh-primary-muted: rgba(176, 60, 34, 0.22); --rh-primary-lighter: rgba(176, 60, 34, 0.12);
+  /* 主色之上的文字色（由 --rh-* 统一控制，避免深色主题下白字不可读） */
+  --rh-on-primary: #fffef9;
+  --rh-ai: #b7d84b; --rh-ai-strong: #5f7410; --rh-success: #3f8f6b; --rh-success-strong: #2f7355; --rh-warning: #9a6a1c; --rh-danger: #b93b3b; --rh-info: #6a7268; --rh-favorite: #a16207;
+  --rh-success-subtle: #e7f2ec; --rh-warning-subtle: #f5eee0; --rh-danger-subtle: #fbeaea;
+  /* 代码块：浅色用下沉面，深色用更深面，保证两种主题下都与页面底色有明确区分 */
+  --rh-code-bg: #e8e5dc; --rh-code-text: #2a2e29;
+  --rh-bg-base: #f5f3ee; --rh-bg-card: #fbfaf6; --rh-bg-elevated: #fffef9; --rh-bg-overlay: rgba(28, 31, 28, 0.46); --rh-bg-inset: #ebe9e1; --rh-bg-subtle: #ebe9e1; --rh-bg-secondary: #f1efe9; --rh-bg-hover: #eeece5; --rh-bg-active: #e5e3d9;
+  --rh-text-primary: #20231f; --rh-text-secondary: #5c625b; --rh-text-tertiary: #676c65; --rh-text-placeholder: #6f746c; --rh-text-inverse: #fffef9;
+  /* 反色面板（背景用 --rh-text-primary 的区块）上的文字与分隔线，随主题反转，避免深色下白字压白底 */
+  --rh-on-inverse-muted: rgba(255, 255, 255, 0.6); --rh-on-inverse-soft: rgba(255, 255, 255, 0.72); --rh-on-inverse-line: rgba(255, 255, 255, 0.16); --rh-on-inverse-border: rgba(255, 255, 255, 0.2);
+  /* 柠檬绿强调块上的文字固定用深色（两个主题的 --rh-ai 都是亮色） */
+  --rh-on-ai: #20231f;
+  --rh-border: #d9d8cf; --rh-border-strong: #b8b9ad; --rh-border-faint: #e9e7df; --rh-border-light: #e9e7df; --rh-divider: #e1e0d7;
   --rh-shadow-sm: 0 1px 0 rgba(32, 35, 31, 0.05); --rh-shadow-md: 0 10px 30px rgba(32, 35, 31, 0.08); --rh-shadow-lg: 0 24px 60px rgba(32, 35, 31, 0.15);
   --rh-radius-xs: 3px; --rh-radius-sm: 5px; --rh-radius-md: 8px;
   --rh-duration-fast: 120ms; --rh-duration-normal: 200ms; --rh-duration-slow: 350ms;
   --rh-transition-fast: cubic-bezier(0.2, 0, 0, 1); --rh-transition-normal: cubic-bezier(0.2, 0, 0, 1); --rh-transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --rh-transition-all-fast: all var(--rh-duration-fast) var(--rh-transition-fast); --rh-transition-all-normal: all var(--rh-duration-normal) var(--rh-transition-normal); --rh-transition-all-slow: all var(--rh-duration-slow) var(--rh-transition-normal);
+  /* 显式列举可过渡属性，替代 transition: all（避免监听全部可动画属性导致掉帧） */
+  --rh-transition-all-fast: background-color var(--rh-duration-fast) var(--rh-transition-fast), border-color var(--rh-duration-fast) var(--rh-transition-fast), color var(--rh-duration-fast) var(--rh-transition-fast), box-shadow var(--rh-duration-fast) var(--rh-transition-fast), transform var(--rh-duration-fast) var(--rh-transition-fast), opacity var(--rh-duration-fast) var(--rh-transition-fast);
+  --rh-transition-all-normal: background-color var(--rh-duration-normal) var(--rh-transition-normal), border-color var(--rh-duration-normal) var(--rh-transition-normal), color var(--rh-duration-normal) var(--rh-transition-normal), box-shadow var(--rh-duration-normal) var(--rh-transition-normal), transform var(--rh-duration-normal) var(--rh-transition-normal), opacity var(--rh-duration-normal) var(--rh-transition-normal);
+  --rh-transition: var(--rh-transition-all-normal);
+  --rh-focus-ring: 0 0 0 3px var(--rh-primary-muted);
   --rh-space-xs: 4px; --rh-space-sm: 8px; --rh-space-md: 12px; --rh-space-base: 16px; --rh-space-lg: 20px; --rh-space-xl: 24px; --rh-space-2xl: 32px; --rh-space-3xl: 48px;
+  /* 字体：页面级标题用衬线展示字体（display），组件/正文一律无衬线（sans） */
+  --rh-font-display: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif;
+  --rh-font-sans: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Hiragino Sans GB', sans-serif;
+  --rh-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', ui-monospace, monospace;
+  /* 字号阶梯：正文 15 / 次级 14 / 说明 13 / 元信息 12 / 标签 11，收敛原先散落的 17 个字号 */
+  --rh-fs-xs: 11px; --rh-fs-sm: 12px; --rh-fs-md: 13px; --rh-fs-base: 14px; --rh-fs-body: 15px; --rh-fs-lg: 17px; --rh-fs-xl: 20px; --rh-fs-2xl: 26px; --rh-fs-3xl: 34px;
+  --rh-lh-tight: 1.35; --rh-lh-base: 1.6; --rh-lh-relaxed: 1.85;
+  /* 层级：统一管理浮层堆叠顺序，替代散落的 100/109/110/9999 */
+  --rh-z-nav: 100; --rh-z-topbar: 110; --rh-z-menu: 109; --rh-z-popover: 200;
+  /* 页面外壳：列表型页面用 --rh-page-max，详情/设置型页面用 --rh-page-narrow */
+  --rh-page-max: 1320px; --rh-page-narrow: 1000px; --rh-page-pad: 32px 32px 56px;
   --rh-nav-width: 224px; --rh-topbar-height: 68px;
-  --el-color-primary: #e85d3f; --el-color-primary-light-3: #ee8069; --el-color-primary-light-5: #f3a18e; --el-color-primary-light-7: #f8c5b8; --el-color-primary-light-8: #f9d9d0; --el-color-primary-light-9: #fcedea; --el-color-primary-dark-2: #c84931;
-  --el-color-success: #3f8f6b; --el-color-warning: #c8892e; --el-color-danger: #c64949; --el-color-info: #788079;
-  --el-bg-color: #fbfaf6; --el-bg-color-overlay: #fffef9; --el-bg-color-page: #f5f3ee; --el-text-color-primary: #20231f; --el-text-color-regular: #5c625b; --el-text-color-secondary: #8b9087; --el-text-color-placeholder: #b4b8ae; --el-border-color: #d9d8cf; --el-border-color-light: #e9e7df; --el-border-color-lighter: #f0eee8; --el-fill-color: #ebe9e1; --el-fill-color-light: #f1efe9; --el-fill-color-lighter: #f7f5f0;
-  --el-card-border-color: #d9d8cf; --el-card-border-radius: 8px; --el-card-padding: 20px; --el-border-radius-base: 5px; --el-border-radius-small: 3px; --el-font-size-base: 14px; --el-font-size-small: 13px; --el-font-size-extra-small: 12px; --el-font-weight-primary: 600;
+  --el-color-primary: #b03c22; --el-color-primary-light-3: #c4604a; --el-color-primary-light-5: #d28371; --el-color-primary-light-7: #e0a697; --el-color-primary-light-8: #eac0b5; --el-color-primary-light-9: #f5e0da; --el-color-primary-dark-2: #96301a;
+  --el-color-success: #3f8f6b; --el-color-warning: #9a6a1c; --el-color-danger: #b93b3b; --el-color-info: #6a7268;
+  --el-bg-color: #fbfaf6; --el-bg-color-overlay: #fffef9; --el-bg-color-page: #f5f3ee; --el-text-color-primary: #20231f; --el-text-color-regular: #5c625b; --el-text-color-secondary: #676c65; --el-text-color-placeholder: #6f746c; --el-border-color: #d9d8cf; --el-border-color-light: #e9e7df; --el-border-color-lighter: #f0eee8; --el-fill-color: #ebe9e1; --el-fill-color-light: #f1efe9; --el-fill-color-lighter: #f7f5f0; --el-fill-color-blank: #fbfaf6;
+  --el-card-border-color: #d9d8cf; --el-card-border-radius: var(--rh-radius-md); --el-card-padding: 20px; --el-border-radius-base: 5px; --el-border-radius-small: 3px; --el-font-size-base: 14px; --el-font-size-small: 13px; --el-font-size-extra-small: 12px; --el-font-weight-primary: 600;
 }
 
-[data-theme="dark"] {
-  --rh-primary: #ff765c; --rh-primary-hover: #ff907b; --rh-primary-active: #e85d3f; --rh-primary-subtle: rgba(255, 118, 92, 0.12); --rh-primary-muted: rgba(255, 118, 92, 0.2); --rh-ai: #c8e85a; --rh-ai-strong: #d9f27f; --rh-success: #71bd94; --rh-warning: #e0aa55; --rh-danger: #f17d7d; --rh-info: #9da39b;
-  --rh-bg-base: #181a18; --rh-bg-card: #202420; --rh-bg-elevated: #292e29; --rh-bg-overlay: rgba(0, 0, 0, 0.65); --rh-bg-inset: #141614; --rh-bg-hover: #2a2e29; --rh-bg-active: #313730;
-  --rh-text-primary: #f2f0e8; --rh-text-secondary: #b7bbb1; --rh-text-tertiary: #858b82; --rh-text-placeholder: #60675f; --rh-text-inverse: #181a18; --rh-border: #3a4039; --rh-border-strong: #555d53; --rh-border-faint: #2c312c; --rh-divider: #303630;
+/* 与 Element Plus 官方的 html.dark 同特异性（0,1,1），靠引入顺序覆盖其深色取值，保留本项目的暖色调色板 */
+html[data-theme="dark"] {
+  --rh-primary: #ff765c; --rh-primary-hover: #ff907b; --rh-primary-active: #e85d3f; --rh-primary-subtle: rgba(255, 118, 92, 0.14); --rh-primary-muted: rgba(255, 118, 92, 0.24); --rh-primary-lighter: rgba(255, 118, 92, 0.14);
+  /* 深色主题主色为亮橙，其上必须使用深色文字才达 AA */
+  --rh-on-primary: #1a1d1a;
+  --rh-ai: #c8e85a; --rh-ai-strong: #d9f27f; --rh-success: #71bd94; --rh-success-strong: #8fd0ab; --rh-warning: #e0aa55; --rh-danger: #f17d7d; --rh-info: #9da39b; --rh-favorite: #e0c44f;
+  --rh-success-subtle: rgba(113, 189, 148, 0.14); --rh-warning-subtle: rgba(224, 170, 85, 0.14); --rh-danger-subtle: rgba(241, 125, 125, 0.14);
+  --rh-code-bg: #0f110f; --rh-code-text: #e6e4db;
+  --rh-bg-base: #181a18; --rh-bg-card: #202420; --rh-bg-elevated: #292e29; --rh-bg-overlay: rgba(0, 0, 0, 0.65); --rh-bg-inset: #141614; --rh-bg-subtle: #141614; --rh-bg-secondary: #202420; --rh-bg-hover: #2a2e29; --rh-bg-active: #313730;
+  --rh-text-primary: #f2f0e8; --rh-text-secondary: #b7bbb1; --rh-text-tertiary: #858b82; --rh-text-placeholder: #9aa095; --rh-text-inverse: #181a18;
+  /* 深色下反色面板（原背景 --rh-text-primary: #20231f → 浅色底 #f2f0e8）文字与分隔线改用深色 */
+  --rh-on-inverse-muted: rgba(32, 35, 31, 0.62); --rh-on-inverse-soft: rgba(32, 35, 31, 0.74); --rh-on-inverse-line: rgba(32, 35, 31, 0.16); --rh-on-inverse-border: rgba(32, 35, 31, 0.22);
+  --rh-on-ai: #1a1d16;
+  --rh-border: #3a4039; --rh-border-strong: #555d53; --rh-border-faint: #2c312c; --rh-border-light: #2c312c; --rh-divider: #303630;
   --rh-shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.2); --rh-shadow-md: 0 12px 30px rgba(0, 0, 0, 0.24); --rh-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.4);
-  --el-color-primary: #ff765c; --el-color-primary-light-3: #ff907b; --el-color-primary-light-5: #ffb0a0; --el-color-primary-light-7: #ffd0c7; --el-color-primary-light-8: #ffe1db; --el-color-primary-light-9: #fff0ec; --el-color-primary-dark-2: #e85d3f; --el-bg-color: #202420; --el-bg-color-overlay: #292e29; --el-bg-color-page: #181a18; --el-text-color-primary: #f2f0e8; --el-text-color-regular: #b7bbb1; --el-text-color-secondary: #858b82; --el-text-color-placeholder: #60675f; --el-border-color: #3a4039; --el-border-color-light: #2c312c; --el-border-color-lighter: #181a18; --el-fill-color: #141614; --el-fill-color-light: #202420; --el-fill-color-lighter: #181a18; --el-card-border-color: #3a4039;
+  --rh-focus-ring: 0 0 0 3px rgba(255, 118, 92, 0.4);
+  --el-color-primary: #ff765c; --el-color-primary-light-3: #b8543f; --el-color-primary-light-5: #8c3f2f; --el-color-primary-light-7: #62301f; --el-color-primary-light-8: #4a2718; --el-color-primary-light-9: #331b11; --el-color-primary-dark-2: #e85d3f; --el-bg-color: #202420; --el-bg-color-overlay: #292e29; --el-bg-color-page: #181a18; --el-text-color-primary: #f2f0e8; --el-text-color-regular: #b7bbb1; --el-text-color-secondary: #9aa095; --el-text-color-placeholder: #9aa095; --el-border-color: #3a4039; --el-border-color-light: #2c312c; --el-border-color-lighter: #181a18; --el-fill-color: #141614; --el-fill-color-light: #272b27; --el-fill-color-lighter: #1b1e1b; --el-fill-color-blank: #202420; --el-card-border-color: #3a4039;
 }
 
-.el-card { border: 1px solid var(--rh-border) !important; box-shadow: var(--rh-shadow-sm) !important; background: var(--rh-bg-card) !important; transition: var(--rh-transition-all-normal) !important; }
-.el-card:hover { border-color: var(--rh-border-strong) !important; box-shadow: var(--rh-shadow-md) !important; }
-.el-button { border-radius: var(--rh-radius-sm) !important; font-weight: 600 !important; transition: var(--rh-transition-all-normal) !important; }
-.el-button--primary { --el-button-bg-color: var(--rh-primary); --el-button-border-color: var(--rh-primary); --el-button-hover-bg-color: var(--rh-primary-hover); --el-button-hover-border-color: var(--rh-primary-hover); --el-button-active-bg-color: var(--rh-primary-active); --el-button-active-border-color: var(--rh-primary-active); }
+/* 用 :root 前缀提升选择器特异性（:root .el-card 为 (0,2,0) > Element Plus 的 .el-card (0,1,0)），无需 !important 即可稳定覆盖 */
+:root .el-card { border: 1px solid var(--rh-border); box-shadow: var(--rh-shadow-sm); background: var(--rh-bg-card); transition: var(--rh-transition-all-normal); }
+:root .el-card:hover { border-color: var(--rh-border-strong); box-shadow: var(--rh-shadow-md); }
+:root .el-button { border-radius: var(--rh-radius-sm); font-weight: 600; transition: var(--rh-transition-all-normal); }
+.el-button--primary { --el-button-bg-color: var(--rh-primary); --el-button-border-color: var(--rh-primary); --el-button-text-color: var(--rh-on-primary); --el-button-hover-bg-color: var(--rh-primary-hover); --el-button-hover-border-color: var(--rh-primary-hover); --el-button-hover-text-color: var(--rh-on-primary); --el-button-active-bg-color: var(--rh-primary-active); --el-button-active-border-color: var(--rh-primary-active); --el-button-active-text-color: var(--rh-on-primary); }
 .el-button--primary.is-link, .el-button--primary.is-text { --el-button-text-color: var(--rh-primary); --el-button-hover-text-color: var(--rh-primary-hover); }
-.el-tag { border-radius: var(--rh-radius-xs) !important; font-weight: 600 !important; }
-.el-tag--primary { --el-tag-bg-color: var(--rh-primary-subtle); --el-tag-text-color: var(--rh-primary); border-color: transparent !important; }
-.el-input__wrapper, .el-select .el-input__wrapper { border-radius: var(--rh-radius-sm) !important; box-shadow: 0 0 0 1px var(--rh-border) inset !important; background: var(--rh-bg-card) !important; transition: var(--rh-transition-all-normal) !important; }
-.el-input__wrapper:hover { box-shadow: 0 0 0 1px var(--rh-border-strong) inset !important; }
-.el-input__wrapper.is-focus { box-shadow: 0 0 0 2px var(--rh-primary-muted) !important; }
-.el-dialog { border: 1px solid var(--rh-border) !important; border-radius: var(--rh-radius-md) !important; box-shadow: var(--rh-shadow-lg) !important; }
-::-webkit-scrollbar { width: 7px; height: 7px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--rh-border-strong); border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: var(--rh-text-tertiary); }
+:root .el-tag { border-radius: var(--rh-radius-xs); font-weight: 600; }
+:root .el-tag--primary { --el-tag-bg-color: var(--rh-primary-subtle); --el-tag-text-color: var(--rh-primary); border-color: transparent; }
+:root .el-input__wrapper, :root .el-select .el-input__wrapper { border-radius: var(--rh-radius-sm); box-shadow: 0 0 0 1px var(--rh-border) inset; background: var(--rh-bg-card); transition: var(--rh-transition-all-normal); }
+:root .el-input__wrapper:hover { box-shadow: 0 0 0 1px var(--rh-border-strong) inset; }
+:root .el-input__wrapper.is-focus { box-shadow: 0 0 0 1px var(--rh-primary) inset, var(--rh-focus-ring); }
+:root .el-dialog { border: 1px solid var(--rh-border); border-radius: var(--rh-radius-md); box-shadow: var(--rh-shadow-lg); }
+/* 统一焦点可见性：键盘可用，鼠标点击不出现轮廓 */
+:focus-visible { outline: 2px solid var(--rh-primary); outline-offset: 2px; }
+.el-button:focus-visible, .el-input__wrapper:focus-within { outline: none; }
+::-webkit-scrollbar { width: 7px; height: 7px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--rh-border-strong); border-radius: var(--rh-radius-xs); } ::-webkit-scrollbar-thumb:hover { background: var(--rh-text-tertiary); }
+/* Firefox 不支持 ::-webkit-scrollbar，需用标准属性单独声明（否则 Firefox 下滚动条保持系统样式的粗灰条） */
+* { scrollbar-width: thin; scrollbar-color: var(--rh-border-strong) transparent; }

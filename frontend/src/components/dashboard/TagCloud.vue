@@ -1,13 +1,36 @@
 <template>
-  <div class="viz-card">
-    <div class="viz-head">
-      <p class="eyebrow">标签分布</p>
-      <h3>标签云</h3>
-      <small>点击标签可在笔记中筛选</small>
-    </div>
-    <div v-if="items.length" ref="chartEl" class="viz-chart"></div>
-    <div v-if="!items.length" class="viz-empty">暂无带标签的内容</div>
-  </div>
+  <VizCard
+    eyebrow="标签分布"
+    title="标签云"
+    hint="点击标签可在笔记中筛选"
+    empty="暂无带标签的内容"
+    :has-data="items.length > 0"
+  >
+    <div ref="chartEl" class="viz-chart"></div>
+    <!-- 无障碍数据摘要：屏幕阅读器可读取标签与出现次数 -->
+    <template #sr-table>
+      <table
+        v-if="items.length"
+        class="viz-sr-table"
+        aria-hidden="false"
+        aria-label="标签分布数据摘要"
+      >
+        <caption class="sr-only">标签云数据摘要：各标签及其出现次数</caption>
+        <thead>
+          <tr>
+            <th scope="col">标签</th>
+            <th scope="col">次数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="t in items" :key="t.name">
+            <td>{{ t.name }}</td>
+            <td>{{ t.value }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
+  </VizCard>
 </template>
 
 <script setup lang="ts">
@@ -17,6 +40,7 @@ import { useRouter } from 'vue-router'
 import { useNotesStore } from '../../stores/notes'
 import type { TagItem } from '../../api/stats'
 import { baseChartOption, themeVar, useChart } from '../../composables/useChart'
+import VizCard from './VizCard.vue'
 
 const props = defineProps<{ items: TagItem[] }>()
 
@@ -24,12 +48,14 @@ const router = useRouter()
 const notesStore = useNotesStore()
 const chartEl = ref<HTMLElement | null>(null)
 
+/** 全站统一调色板（顺序：主色 → AI 强调 → 成功 → 警告 → 信息 → 主色激活） */
 const palette = computed(() => [
-  themeVar('--rh-primary', '#e85d3f'),
-  themeVar('--rh-ai-strong', '#789415'),
+  themeVar('--rh-primary', '#b03c22'),
+  themeVar('--rh-ai-strong', '#5f7410'),
   themeVar('--rh-success', '#3f8f6b'),
-  themeVar('--rh-warning', '#c8892e'),
-  themeVar('--rh-info', '#788079'),
+  themeVar('--rh-warning', '#9a6a1c'),
+  themeVar('--rh-info', '#6a7268'),
+  themeVar('--rh-primary-active', '#7f2714'),
 ])
 
 useChart(chartEl, {
@@ -51,7 +77,8 @@ useChart(chartEl, {
         textStyle: {
           fontFamily: "'Noto Sans SC', 'PingFang SC', sans-serif",
           fontWeight: 700,
-          color: () => palette.value[Math.floor(Math.random() * palette.value.length)],
+          // 按标签序号顺序取色（而非随机），保证同一标签颜色稳定、且与顺序一致
+          color: (params: { dataIndex: number }) => palette.value[params.dataIndex % palette.value.length],
         },
         emphasis: { textStyle: { textShadowBlur: 4, textShadowColor: themeVar('--rh-border-strong') } },
         data: props.items.map((t) => ({ name: t.name, value: t.value })),
@@ -64,13 +91,3 @@ useChart(chartEl, {
   },
 })
 </script>
-
-<style scoped>
-.viz-card { border: 1px solid var(--rh-border); background: var(--rh-bg-card); padding: 20px 22px; display: flex; flex-direction: column; }
-.viz-head { margin-bottom: 6px; }
-.viz-head h3 { font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 500; margin: 0; }
-.viz-head small { display: block; margin-top: 4px; color: var(--rh-text-tertiary); font-size: 12px; }
-.eyebrow { margin: 0 0 5px; color: var(--rh-text-tertiary); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.viz-chart { flex: 1; min-height: 240px; }
-.viz-empty { display: grid; place-items: center; flex: 1; min-height: 240px; color: var(--rh-text-tertiary); font-size: 13px; }
-</style>

@@ -37,6 +37,14 @@ export const usePromptsStore = defineStore('prompts', () => {
     currentPrompt.value = await promptsApi.get(id)
   }
 
+  /** 收藏总数：单独取全量 total，避免只在当前分页内统计导致数字偏小 */
+  const favoriteTotal = ref(0)
+
+  async function fetchFavoriteTotal() {
+    const result = await promptsApi.list({ page: 1, page_size: 1, is_favorite: true })
+    favoriteTotal.value = result.total
+  }
+
   async function createPrompt(data: PromptCreate) {
     const prompt = await promptsApi.create(data)
     await fetchPrompts()
@@ -184,6 +192,8 @@ export const usePromptsStore = defineStore('prompts', () => {
     prompts,
     currentPrompt,
     total,
+    favoriteTotal,
+    fetchFavoriteTotal,
     page,
     pageSize,
     selectedCategoryId,

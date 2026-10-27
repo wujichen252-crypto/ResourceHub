@@ -1,13 +1,36 @@
 <template>
-  <div class="viz-card">
-    <div class="viz-head">
-      <p class="eyebrow">资源构成</p>
-      <h3>分类分布</h3>
-      <small>笔记按一级分类统计</small>
-    </div>
-    <div v-if="items.length" ref="chartEl" class="viz-chart"></div>
-    <div v-if="!items.length" class="viz-empty">暂无分类数据</div>
-  </div>
+  <VizCard
+    eyebrow="资源构成"
+    title="分类分布"
+    hint="笔记按一级分类统计"
+    empty="暂无分类数据"
+    :has-data="items.length > 0"
+  >
+    <div ref="chartEl" class="viz-chart"></div>
+    <!-- 无障碍数据摘要：屏幕阅读器可读取分类与数量 -->
+    <template #sr-table>
+      <table
+        v-if="items.length"
+        class="viz-sr-table"
+        aria-hidden="false"
+        aria-label="分类分布数据摘要"
+      >
+        <caption class="sr-only">笔记一级分类及其数量</caption>
+        <thead>
+          <tr>
+            <th scope="col">分类</th>
+            <th scope="col">数量</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="d in items" :key="d.name">
+            <td>{{ d.name }}</td>
+            <td>{{ d.value }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
+  </VizCard>
 </template>
 
 <script setup lang="ts">
@@ -15,18 +38,20 @@
 import { computed, ref } from 'vue'
 import type { DistributionItem } from '../../api/stats'
 import { baseChartOption, themeVar, useChart } from '../../composables/useChart'
+import VizCard from './VizCard.vue'
 
 const props = defineProps<{ items: DistributionItem[] }>()
 
 const chartEl = ref<HTMLElement | null>(null)
 
+/** 全站统一调色板（顺序：主色 → AI 强调 → 成功 → 警告 → 信息 → 主色激活） */
 const palette = computed(() => [
-  themeVar('--rh-primary', '#e85d3f'),
-  themeVar('--rh-ai-strong', '#789415'),
+  themeVar('--rh-primary', '#b03c22'),
+  themeVar('--rh-ai-strong', '#5f7410'),
   themeVar('--rh-success', '#3f8f6b'),
-  themeVar('--rh-warning', '#c8892e'),
-  themeVar('--rh-info', '#788079'),
-  themeVar('--rh-primary-active', '#a93c28'),
+  themeVar('--rh-warning', '#9a6a1c'),
+  themeVar('--rh-info', '#6a7268'),
+  themeVar('--rh-primary-active', '#7f2714'),
 ])
 
 useChart(chartEl, {
@@ -39,7 +64,7 @@ useChart(chartEl, {
       bottom: 0,
       icon: 'circle',
       itemWidth: 8,
-      textStyle: { color: themeVar('--rh-text-secondary'), fontSize: 11 },
+      textStyle: { color: themeVar('--rh-text-secondary'), fontSize: 12 },
     },
     series: [
       {
@@ -56,13 +81,3 @@ useChart(chartEl, {
   }),
 })
 </script>
-
-<style scoped>
-.viz-card { border: 1px solid var(--rh-border); background: var(--rh-bg-card); padding: 20px 22px; display: flex; flex-direction: column; }
-.viz-head { margin-bottom: 6px; }
-.viz-head h3 { font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 500; margin: 0; }
-.viz-head small { display: block; margin-top: 4px; color: var(--rh-text-tertiary); font-size: 12px; }
-.eyebrow { margin: 0 0 5px; color: var(--rh-text-tertiary); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.viz-chart { flex: 1; min-height: 240px; }
-.viz-empty { display: grid; place-items: center; flex: 1; min-height: 240px; color: var(--rh-text-tertiary); font-size: 13px; }
-</style>

@@ -20,6 +20,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/ai',
+    name: 'AIWorkspace',
+    component: () => import('../views/AI/Workspace.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/notes',
     name: 'Notes',
     component: () => import('../views/Notes/NotesPage.vue'),
@@ -53,6 +59,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/prompts/:id/lab',
+    name: 'PromptLab',
+    component: () => import('../views/Prompts/PromptLab.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/prompts/:id/edit',
     name: 'PromptEditor',
     component: () => import('../views/Prompts/PromptEditor.vue'),
@@ -75,6 +87,13 @@ const routes: RouteRecordRaw[] = [
     name: 'Settings',
     component: () => import('../views/Settings.vue'),
     meta: { requiresAuth: true },
+  },
+  // 兜底路由：未匹配的地址渲染 404 页，避免出现空白页
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFound.vue'),
+    meta: { requiresAuth: false },
   },
 ]
 

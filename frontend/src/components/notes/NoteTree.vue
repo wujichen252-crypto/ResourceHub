@@ -2,7 +2,7 @@
   <div class="note-tree">
     <div class="tree-header">
       <span class="tree-title">目录</span>
-      <el-button text size="small" @click="handleAddRootFolder">
+      <el-button text size="small" aria-label="新建根目录" title="新建根目录" @click="handleAddRootFolder">
         <el-icon><Plus /></el-icon>
       </el-button>
     </div>
@@ -34,6 +34,29 @@
             <Folder v-else />
           </el-icon>
           <span class="node-label" :class="{ 'note-label': data.isNote }">{{ data.name }}</span>
+          <!-- 右键菜单的键盘 / 触屏等价入口：保证核心操作不只依赖右键 -->
+          <el-dropdown
+            v-if="!data.isNote"
+            trigger="click"
+            placement="bottom-start"
+            @command="(cmd: string | number | object) => handleNodeAction(String(cmd), data)"
+          >
+            <button
+              class="node-more"
+              type="button"
+              :aria-label="`「${data.name}」的更多操作`"
+              @click.stop
+            >
+              <el-icon><MoreFilled /></el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="add-sub">新建子目录</el-dropdown-item>
+                <el-dropdown-item command="rename">重命名</el-dropdown-item>
+                <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </span>
       </template>
     </el-tree>
@@ -94,7 +117,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { Plus, Folder, FolderOpened, Document } from '@element-plus/icons-vue'
+import { Plus, Folder, FolderOpened, Document, MoreFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ElTree } from 'element-plus'
 import type Node from 'element-plus/es/components/tree/src/model/node'
@@ -200,23 +223,31 @@ function closeContextMenu() {
   contextMenu.visible = false
 }
 
-function handleNodeClick(data: TreeNode) {
+/** 展开 / 收起节点（图标点击与整行点击共用） */
+function toggleNode(node: Node) {
+  if (node.expanded) {
+    node.collapse()
+  } else {
+    node.expand()
+  }
+}
+
+function handleNodeClick(data: TreeNode, node: Node) {
   if (data.isNote && data.noteId != null) {
     emit('select-note', data.noteId)
-  } else if (data.categoryId != null) {
-    emit('update:modelValue', data.categoryId)
+    return
   }
+  if (data.categoryId == null) return
+  emit('update:modelValue', data.categoryId)
+  // 点击目录名称 / 整行即展开或收起，无需精准点中文件夹图标
+  if (!node.isLeaf) toggleNode(node)
 }
 
 // 点击文件夹图标 → 展开/收起整个子树（无需逐个收起下级）
 function handleIconToggle(evt: MouseEvent, node: Node, data: TreeNode) {
   evt.stopPropagation()
   if (data.isNote || node.isLeaf) return
-  if (node.expanded) {
-    node.collapse()
-  } else {
-    node.expand()
-  }
+  toggleNode(node)
 }
 
 function handleNodeExpand(data: TreeNode) {
@@ -240,6 +271,14 @@ function handleContextMenu(
   contextMenu.x = _evt.clientX
   contextMenu.y = _evt.clientY
   contextMenu.data = data
+}
+
+/** 「⋯」入口与右键菜单共用同一套处理逻辑 */
+function handleNodeAction(command: string, data: TreeNode) {
+  contextMenu.data = data
+  if (command === 'add-sub') handleAddSubFolder()
+  else if (command === 'rename') handleRename()
+  else if (command === 'delete') handleDelete()
 }
 
 async function handleAddRootFolder() {
@@ -323,7 +362,7 @@ async function handleDelete() {
     await ElMessageBox.confirm(
       `确定要删除「${contextMenu.data!.name}」及其所有子目录和笔记吗？此操作不可恢复。`,
       '确认删除',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'error' },
     )
     isCreatingFolder.value = true
     await categoriesStore.deleteCategory(categoryId, 'note')
@@ -377,9 +416,10 @@ async function handleDelete() {
   padding: 2px 0;
 }
 
+/* 分类与笔记用同尺寸图标、同字号，仅以图形区分类型 */
 .folder-icon {
   color: var(--rh-text-tertiary);
-  font-size: 16px;
+  font-size: 15px;
   flex-shrink: 0;
 }
 
@@ -393,12 +433,10 @@ async function handleDelete() {
 }
 
 .note-icon {
-  font-size: 14px;
   color: var(--rh-text-secondary);
 }
 
 .note-label {
-  font-size: 13px;
   color: var(--rh-text-secondary);
 }
 
@@ -408,12 +446,48 @@ async function handleDelete() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 13.5px;
+}
+
+/* 「⋯」更多操作：悬停或键盘聚焦时显现，Tab 可达 */
+.node-more {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin-right: 4px;
+  border: 0;
+  border-radius: var(--rh-radius-xs);
+  background: transparent;
+  color: var(--rh-text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: var(--rh-transition-all-fast);
+}
+
+.tree-node:hover .node-more,
+.node-more:focus-visible {
+  opacity: 1;
+}
+
+.node-more:hover {
+  background: var(--rh-bg-active);
+  color: var(--rh-text-primary);
+}
+
+/* 隐藏 Element 自带三角箭头：展开统一由文件夹图标承担，消除重复控件 */
+.category-tree :deep(.el-tree-node__expand-icon) {
+  display: none;
 }
 
 .category-tree :deep(.el-tree-node__content) {
-  height: 34px;
-  border-radius: 6px;
-  transition: var(--rh-transition);
+  height: 36px;
+  border-radius: var(--rh-radius-sm);
+  transition: var(--rh-transition-all-fast);
+  /* 整行可点击（展开/收起目录或打开笔记），给出指针反馈 */
+  cursor: pointer;
 }
 
 .category-tree :deep(.el-tree-node__content:hover) {
@@ -439,7 +513,7 @@ async function handleDelete() {
 /* Context Menu */
 .context-menu {
   position: fixed;
-  z-index: 9999;
+  z-index: var(--rh-z-popover);
   list-style: none;
   margin: 0;
   padding: 6px 0;

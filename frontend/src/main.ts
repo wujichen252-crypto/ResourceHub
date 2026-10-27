@@ -2,25 +2,19 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
+// Element Plus 官方深色变量（需 html.dark 生效）：补齐按钮、下拉、分页、骨架等组件自身的深色取值
+import 'element-plus/theme-chalk/dark/css-vars.css'
 
 import './styles/theme.css'
 import './styles/global.css'
+import './styles/markdown.css'
 
 import App from './App.vue'
 import router from './router'
 
 const app = createApp(App)
 
-// Initialize theme before mount to prevent flash of wrong colors
-try {
-  const stored = localStorage.getItem('theme')
-  const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches
-  const theme = stored === 'dark' ? 'dark' : stored === 'light' ? 'light' : (systemDark ? 'dark' : 'light')
-  // Already set via inline script in index.html; this is a sync fallback
-  document.documentElement.setAttribute('data-theme', theme)
-} catch {
-  // localStorage may be unavailable; rely on index.html inline script
-}
+// 主题初始化由 index.html 内联脚本（防首屏闪色）与 composables/useTheme.ts 统一负责
 
 app.use(createPinia())
 app.use(router)

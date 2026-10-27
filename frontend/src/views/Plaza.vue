@@ -1,5 +1,5 @@
 <template>
-  <div class="plaza-page">
+  <div class="rh-page">
     <!-- Page Header -->
     <Transition name="fade-slide" appear>
       <div class="page-header animate-fade-in-up">
@@ -25,12 +25,14 @@
           class="search-input"
           @input="handleSearch"
         />
-        <span class="count-info">{{ plazaStore.total }} 个</span>
+        <span class="count-info">{{ plazaStore.total }} 条</span>
       </div>
     </Transition>
 
     <!-- Card Grid -->
-    <div v-loading="plazaStore.loading" class="plaza-grid">
+    <LoadingState v-if="plazaStore.loading" variant="card" />
+
+    <div v-else class="plaza-grid">
       <TransitionGroup name="stagger-grid" tag="div" class="grid-inner">
         <div
           v-for="(item, idx) in plazaStore.items"
@@ -38,16 +40,25 @@
           class="grid-col"
           :class="'stagger-' + Math.min(idx, 5)"
         >
-          <el-card shadow="never" class="plaza-card" @click="goDetail(item)">
+          <el-card
+            shadow="never"
+            class="plaza-card"
+            role="link"
+            tabindex="0"
+            :aria-label="`查看「${item.title}」`"
+            @click="goDetail(item)"
+            @keydown.enter.prevent="goDetail(item)"
+            @keydown.space.prevent="goDetail(item)"
+          >
             <div class="card-header">
-              <el-tag size="small" :type="item.type === 'note' ? 'info' : 'warning'">
+              <el-tag size="small" type="info" effect="plain">
                 {{ item.type === 'note' ? '笔记' : '提示词' }}
               </el-tag>
               <h3 class="card-title">{{ item.title }}</h3>
             </div>
             <p class="card-preview">{{ item.content_preview || '暂无内容' }}</p>
-            <div class="card-tags" v-if="item.tags.length">
-              <el-tag v-for="t in item.tags.slice(0, 4)" :key="t" size="small" class="tag-item">{{ t }}</el-tag>
+            <div class="card-tags" v-if="item.tags?.length">
+              <el-tag v-for="t in (item.tags || []).slice(0, 4)" :key="t" size="small" class="tag-item">{{ t }}</el-tag>
             </div>
             <div class="card-footer">
               <span class="author">
@@ -71,12 +82,16 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="!plazaStore.loading && plazaStore.items.length === 0" class="empty-state">
-      <p>广场还很安静，去发布你的第一篇内容吧</p>
+    <EmptyState
+      v-if="!plazaStore.loading && plazaStore.items.length === 0"
+      :icon="Grid"
+      title="广场还很安静"
+      description="去发布你的第一篇内容吧"
+    >
       <el-button type="primary" @click="router.push(plazaStore.contentType === 'note' ? '/notes' : '/prompts')">
         去{{ plazaStore.contentType === 'note' ? '笔记库' : '提示词库' }}发布
       </el-button>
-    </div>
+    </EmptyState>
 
     <!-- Pagination -->
     <div v-if="plazaStore.total > plazaStore.pageSize" class="pagination-wrapper">
@@ -94,10 +109,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { CopyDocument, Search } from '@element-plus/icons-vue'
+import { CopyDocument, Grid, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { PlazaContentType, PlazaItem } from '../api/plaza'
 import { usePlazaStore } from '../stores/plaza'
+import EmptyState from '../components/common/EmptyState.vue'
+import LoadingState from '../components/common/LoadingState.vue'
 
 const router = useRouter()
 const plazaStore = usePlazaStore()
@@ -150,22 +167,17 @@ function handleFork(item: PlazaItem) {
 </script>
 
 <style scoped>
-.plaza-page {
-  padding: 28px 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
 .page-header {
   margin-bottom: 20px;
 }
 
 .page-title {
+  font-family: var(--rh-font-display);
   font-size: 26px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--rh-text-primary);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .page-subtitle {
@@ -206,12 +218,14 @@ function handleFork(item: PlazaItem) {
   height: 100%;
   cursor: pointer;
   border: 1px solid var(--rh-border);
-  border-radius: 12px;
-  transition: border-color 0.2s, transform 0.2s;
+  border-radius: var(--rh-radius-md);
+  transition: var(--rh-transition-all-normal);
 }
 
-.plaza-card:hover {
+.plaza-card:hover,
+.plaza-card:focus-visible {
   border-color: var(--rh-primary);
+  box-shadow: var(--rh-shadow-md);
   transform: translateY(-2px);
 }
 
@@ -265,16 +279,6 @@ function handleFork(item: PlazaItem) {
   gap: 6px;
   font-size: 12px;
   color: var(--rh-text-tertiary);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 0;
-  color: var(--rh-text-tertiary);
-}
-
-.empty-state p {
-  margin-bottom: 16px;
 }
 
 .pagination-wrapper {

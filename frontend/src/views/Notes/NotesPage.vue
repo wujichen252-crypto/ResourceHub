@@ -80,20 +80,22 @@ function handleSelectNote(noteId: number) {
 @media (max-width: 640px) {
   .notes-page {
     flex-direction: column;
-    overflow-y: auto;
+    /* 保持固定视口高度，两栏各自内部滚动，避免页面级嵌套滚动与内容被裁切 */
+    overflow: hidden;
   }
 
   .page-sidebar {
     width: 100%;
     min-width: 0;
-    height: 280px;
+    height: auto;
+    max-height: 42%;
     flex-shrink: 0;
     border-right: 0;
     border-bottom: 1px solid var(--rh-border-faint);
   }
 
   .page-content {
-    min-height: 420px;
+    min-height: 0;
     flex: 1;
   }
 }

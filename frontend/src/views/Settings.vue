@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-page">
+  <div class="rh-page rh-page--narrow">
     <div class="page-heading">
       <h1 class="page-title">设置</h1>
       <p class="page-desc">管理你的账户和数据</p>
@@ -13,9 +13,21 @@
         <el-descriptions-item label="用户名">{{ authStore.user?.username || '-' }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ authStore.user?.email || '未设置' }}</el-descriptions-item>
         <el-descriptions-item label="注册时间">
-          {{ authStore.user?.created_at ? new Date(authStore.user.created_at).toLocaleDateString() : '-' }}
+          {{ formatDate(authStore.user?.created_at) || '-' }}
         </el-descriptions-item>
       </el-descriptions>
+    </el-card>
+
+    <el-card shadow="never" class="settings-card">
+      <template #header>
+        <span>外观</span>
+      </template>
+      <p class="settings-desc">选择界面配色。选择「跟随系统」时会随操作系统外观自动切换。</p>
+      <el-radio-group :model-value="preference" @change="onThemeChange">
+        <el-radio-button value="light">浅色</el-radio-button>
+        <el-radio-button value="dark">深色</el-radio-button>
+        <el-radio-button value="system">跟随系统</el-radio-button>
+      </el-radio-group>
     </el-card>
 
     <el-card shadow="never" class="settings-card">
@@ -52,13 +64,13 @@
       </template>
       <p class="settings-desc">将您的数据导出为 JSON 或 Markdown 格式，便于备份和迁移。</p>
       <div class="export-buttons">
-        <el-button type="primary" @click="exportNotes('json')" :loading="exporting">
+        <el-button @click="exportNotes('json')" :loading="exporting">
           <el-icon><Download /></el-icon> 导出笔记 (JSON)
         </el-button>
-        <el-button type="success" @click="exportNotes('markdown')" :loading="exporting">
+        <el-button @click="exportNotes('markdown')" :loading="exporting">
           <el-icon><Download /></el-icon> 导出笔记 (Markdown)
         </el-button>
-        <el-button type="warning" @click="exportPrompts" :loading="exporting">
+        <el-button @click="exportPrompts" :loading="exporting">
           <el-icon><Download /></el-icon> 导出提示词 (JSON)
         </el-button>
       </div>
@@ -85,11 +97,19 @@ import { Download } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { authApi } from '../api/auth'
 import http from '../api/http'
+import { useTheme } from '../composables/useTheme'
+import { formatDate } from '../utils/format'
 
 const authStore = useAuthStore()
+const { preference, setPreference } = useTheme()
 const exporting = ref(false)
 const changingPassword = ref(false)
 const passwordFormRef = ref<FormInstance>()
+
+/** 外观偏好切换（含「跟随系统」） */
+function onThemeChange(value: string | number | boolean | undefined) {
+  if (value === 'light' || value === 'dark' || value === 'system') setPreference(value)
+}
 
 const passwordForm = reactive({
   oldPassword: '',
@@ -156,7 +176,7 @@ async function exportNotes(format: 'json' | 'markdown') {
       }
       downloadFile(md, 'notes-export.md', 'text/markdown')
     }
-    ElMessage.success('导出成功')
+    warnIfTruncated(notes.length)
   } catch {
     ElMessage.error('导出失败，请稍后重试')
   } finally {
@@ -172,12 +192,18 @@ async function exportPrompts() {
     })
     const data = response.data.data
     downloadFile(JSON.stringify(data, null, 2), 'prompts-export.json', 'application/json')
-    ElMessage.success('导出成功')
+    warnIfTruncated(data.length)
   } catch {
     ElMessage.error('导出失败，请稍后重试')
   } finally {
     exporting.value = false
   }
+}
+
+/** 导出条目数达到分页上限时，明确告知数据可能不完整（原先会静默截断） */
+function warnIfTruncated(count: number) {
+  if (count >= 1000) ElMessage.warning('导出内容已达 1000 条上限，可能存在数据未导出')
+  else ElMessage.success('导出成功')
 }
 
 function downloadFile(content: string, filename: string, mimeType: string) {
@@ -194,19 +220,14 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 </script>
 
 <style scoped>
-.settings-page {
-  padding: 28px 32px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
 .page-heading {
   margin-bottom: 28px;
 }
 
 .page-title {
+  font-family: var(--rh-font-display);
   font-size: 26px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--rh-text-primary);
   margin: 0 0 4px;
 }

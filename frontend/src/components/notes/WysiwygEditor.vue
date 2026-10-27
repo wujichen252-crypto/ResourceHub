@@ -1,28 +1,16 @@
 <template>
   <div class="wysiwyg-editor">
     <!-- Toolbar -->
-    <div class="editor-toolbar" v-if="editor">
+    <div class="editor-toolbar" v-if="editor" role="toolbar" aria-label="笔记编辑工具栏">
       <div class="toolbar-group">
         <el-tooltip content="加粗" placement="bottom">
-          <el-button
-            :type="editor.isActive('bold') ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleBold().run()"
-          ><strong>B</strong></el-button>
+          <el-button size="small" aria-label="加粗" :class="{ 'is-active': editor.isActive('bold') }" @click="editor.chain().focus().toggleBold().run()"><span class="tb-glyph tb-bold">B</span></el-button>
         </el-tooltip>
         <el-tooltip content="斜体" placement="bottom">
-          <el-button
-            :type="editor.isActive('italic') ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleItalic().run()"
-          ><em>I</em></el-button>
+          <el-button size="small" aria-label="斜体" :class="{ 'is-active': editor.isActive('italic') }" @click="editor.chain().focus().toggleItalic().run()"><span class="tb-glyph tb-italic">I</span></el-button>
         </el-tooltip>
         <el-tooltip content="删除线" placement="bottom">
-          <el-button
-            :type="editor.isActive('strike') ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleStrike().run()"
-          ><span style="text-decoration: line-through">S</span></el-button>
+          <el-button size="small" aria-label="删除线" :class="{ 'is-active': editor.isActive('strike') }" @click="editor.chain().focus().toggleStrike().run()"><span class="tb-glyph tb-strike">S</span></el-button>
         </el-tooltip>
       </div>
 
@@ -30,25 +18,13 @@
 
       <div class="toolbar-group">
         <el-tooltip content="标题 1" placement="bottom">
-          <el-button
-            :type="editor.isActive('heading', { level: 1 }) ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-          >H1</el-button>
+          <el-button size="small" aria-label="标题 1" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"><span class="tb-glyph">H1</span></el-button>
         </el-tooltip>
         <el-tooltip content="标题 2" placement="bottom">
-          <el-button
-            :type="editor.isActive('heading', { level: 2 }) ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-          >H2</el-button>
+          <el-button size="small" aria-label="标题 2" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"><span class="tb-glyph">H2</span></el-button>
         </el-tooltip>
         <el-tooltip content="标题 3" placement="bottom">
-          <el-button
-            :type="editor.isActive('heading', { level: 3 }) ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-          >H3</el-button>
+          <el-button size="small" aria-label="标题 3" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"><span class="tb-glyph">H3</span></el-button>
         </el-tooltip>
       </div>
 
@@ -56,18 +32,10 @@
 
       <div class="toolbar-group">
         <el-tooltip content="无序列表" placement="bottom">
-          <el-button
-            :type="editor.isActive('bulletList') ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleBulletList().run()"
-          ><el-icon><List /></el-icon></el-button>
+          <el-button size="small" aria-label="无序列表" :class="{ 'is-active': editor.isActive('bulletList') }" @click="editor.chain().focus().toggleBulletList().run()"><el-icon><List /></el-icon></el-button>
         </el-tooltip>
         <el-tooltip content="有序列表" placement="bottom">
-          <el-button
-            :type="editor.isActive('orderedList') ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleOrderedList().run()"
-          >1.</el-button>
+          <el-button size="small" aria-label="有序列表" :class="{ 'is-active': editor.isActive('orderedList') }" @click="editor.chain().focus().toggleOrderedList().run()"><span class="tb-glyph">1.</span></el-button>
         </el-tooltip>
       </div>
 
@@ -75,28 +43,17 @@
 
       <div class="toolbar-group">
         <el-tooltip content="引用" placement="bottom">
-          <el-button
-            :type="editor.isActive('blockquote') ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleBlockquote().run()"
-          ><el-icon><ChatLineRound /></el-icon></el-button>
+          <el-button size="small" aria-label="引用" :class="{ 'is-active': editor.isActive('blockquote') }" @click="editor.chain().focus().toggleBlockquote().run()"><el-icon><ChatLineRound /></el-icon></el-button>
         </el-tooltip>
         <el-tooltip content="代码块" placement="bottom">
-          <el-button
-            :type="editor.isActive('codeBlock') ? 'primary' : 'default'"
-            size="small"
-            @click="editor.chain().focus().toggleCodeBlock().run()"
-          ><span style="font-family: monospace; font-weight: bold">{ }</span></el-button>
+          <el-button size="small" aria-label="代码块" :class="{ 'is-active': editor.isActive('codeBlock') }" @click="editor.chain().focus().toggleCodeBlock().run()"><span class="tb-glyph tb-mono">{ }</span></el-button>
         </el-tooltip>
         <el-tooltip content="分割线" placement="bottom">
-          <el-button
-            size="small"
-            @click="editor.chain().focus().setHorizontalRule().run()"
-          >—</el-button>
+          <el-button size="small" aria-label="分割线" @click="editor.chain().focus().setHorizontalRule().run()"><span class="tb-glyph">—</span></el-button>
         </el-tooltip>
       </div>
 
-      <div style="flex: 1" />
+      <div class="toolbar-spacer" />
     </div>
 
     <!-- Editor Content -->
@@ -189,7 +146,7 @@ defineExpose({ manualSave })
   padding: 8px 16px;
   border-bottom: 1px solid var(--rh-border-light);
   background: var(--rh-bg-card);
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--rh-radius-md) var(--rh-radius-md) 0 0;
   flex-wrap: wrap;
   position: sticky;
   top: 0;
@@ -204,29 +161,55 @@ defineExpose({ manualSave })
 .toolbar-group .el-button {
   min-width: 32px;
   padding: 4px 8px;
+}
+
+/* 激活态用淡色底 + 主色文字，替代原先的实心色块，降低工具栏视觉噪音 */
+.toolbar-group .el-button.is-active {
+  background: var(--rh-primary-subtle);
+  border-color: var(--rh-primary-muted);
+  color: var(--rh-primary);
+}
+
+/* 工具栏内的文本字形统一为同一套字体 / 字号 / 字重 */
+.tb-glyph {
+  font-family: var(--rh-font-sans);
   font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.tb-bold { font-weight: 800; }
+.tb-italic { font-family: var(--rh-font-display); font-style: italic; }
+.tb-strike { text-decoration: line-through; }
+.tb-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.toolbar-spacer {
+  flex: 1;
 }
 
 .editor-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px;
+  padding: 22px 30px;
+  border: 1px solid transparent;
+  border-radius: 0 0 var(--rh-radius-md) var(--rh-radius-md);
+  transition: var(--rh-transition-all-normal);
+}
+
+/* 键盘用户可感知编辑区焦点（原先三处 outline: none 会完全隐藏焦点位置） */
+.editor-body:focus-within {
+  border-color: var(--rh-primary);
+  box-shadow: var(--rh-focus-ring);
 }
 
 :deep(.editor-content) {
-  outline: none;
   min-height: 400px;
   font-size: 15.5px;
   line-height: 1.85;
   color: var(--rh-text-primary);
 }
 
-:deep(.editor-content:focus) {
-  outline: none;
-}
-
 :deep(.ProseMirror) {
-  outline: none;
   min-height: 400px;
 }
 
@@ -289,7 +272,7 @@ defineExpose({ manualSave })
   background: var(--rh-bg-subtle);
   color: var(--rh-primary);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--rh-radius-xs);
   font-size: 14px;
 }
 
@@ -305,7 +288,7 @@ defineExpose({ manualSave })
   margin: 16px 0;
   color: var(--rh-text-secondary);
   background: var(--rh-bg-subtle);
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--rh-radius-sm) var(--rh-radius-sm) 0;
 }
 
 :deep(.ProseMirror hr) {
@@ -316,7 +299,7 @@ defineExpose({ manualSave })
 
 :deep(.ProseMirror img) {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--rh-radius-md);
   margin: 16px 0;
 }
 
@@ -337,31 +320,5 @@ defineExpose({ manualSave })
 :deep(.ProseMirror th) {
   background: var(--rh-bg-subtle);
   font-weight: 600;
-}
-
-:deep(.ProseMirror p.is-editor-empty:first-child::before) {
-  content: attr(data-placeholder);
-  float: left;
-  color: var(--rh-text-placeholder);
-  pointer-events: none;
-  height: 0;
-}
-
-/* Save status */
-.save-status {
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.status-saving {
-  color: var(--rh-text-tertiary);
-}
-
-.status-saved {
-  color: #10b981;
-}
-
-.status-error {
-  color: var(--el-color-danger);
 }
 </style>

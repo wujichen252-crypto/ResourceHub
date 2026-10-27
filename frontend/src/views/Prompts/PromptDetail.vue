@@ -1,34 +1,38 @@
 <template>
-  <div class="prompt-detail-page">
+  <div class="rh-page rh-page--narrow">
     <!-- Page Transition -->
     <Transition name="fade-slide" appear>
       <div class="detail-state">
-        <div v-if="!loading && prompt" class="page-wrapper animate-fade-in-up">
+        <LoadingState v-if="loading" variant="detail" />
+        <ErrorState v-else-if="error" @retry="retryLoad" />
+        <EmptyState v-else-if="!prompt" :icon="Document" title="提示词不存在">
+          <el-button @click="goBack">返回列表</el-button>
+        </EmptyState>
+        <div v-else class="page-wrapper animate-fade-in-up">
         <!-- Header -->
         <div class="detail-header">
           <el-button text @click="goBack">
             <el-icon><ArrowLeft /></el-icon> 返回列表
           </el-button>
           <div class="detail-actions">
-            <el-button @click="toggleFav">
+            <el-button :aria-pressed="prompt.is_favorite" @click="toggleFav">
               <el-icon><StarFilled v-if="prompt.is_favorite" /><Star v-else /></el-icon>
               {{ prompt.is_favorite ? '已收藏' : '收藏' }}
             </el-button>
             <el-button @click="showVersionDrawer = true">
               <el-icon><Clock /></el-icon> 历史版本
             </el-button>
-            <el-button
-              :type="prompt.visibility === 'public' ? 'warning' : 'success'"
-              @click="togglePublish"
-              :loading="publishing"
-            >
+            <el-button @click="router.push(`/prompts/${prompt.id}/lab`)">
+              <el-icon><DataAnalysis /></el-icon> 测试提示词
+            </el-button>
+            <el-button @click="togglePublish" :loading="publishing">
               <el-icon><Promotion /></el-icon>
               {{ prompt.visibility === 'public' ? '取消发布' : '发布到广场' }}
             </el-button>
             <el-button type="primary" @click="editPrompt">
               <el-icon><Edit /></el-icon> 编辑
             </el-button>
-            <el-button type="danger" @click="deletePrompt">
+            <el-button type="danger" plain @click="deletePrompt">
               <el-icon><Delete /></el-icon> 删除
             </el-button>
           </div>
@@ -58,7 +62,7 @@
               <pre class="template-content">{{ prompt.content }}</pre>
 
               <div v-if="prompt.variables?.length" class="variables-display">
-                <span class="vars-label">变量:</span>
+                <span class="vars-label">需要填写的内容：</span>
                 <el-tag
                   v-for="v in prompt.variables"
                   :key="v"
@@ -73,31 +77,47 @@
           <el-col :xs="24" :lg="10">
             <el-card shadow="never" class="section-card">
               <template #header>
-                <span>填充变量</span>
+                <span>填写内容</span>
               </template>
 
               <div v-if="!prompt.variables?.length" class="no-vars">
-                <p>该提示词没有变量，可以直接复制使用。</p>
+                <p>这个提示词不需要填写内容，可以直接复制使用。</p>
                 <el-button type="primary" class="copy-btn" @click="copyContent(prompt.content || '')">
                   <el-icon><CopyDocument /></el-icon> 复制提示词
                 </el-button>
               </div>
 
               <template v-else>
-                <!-- Live Preview Toggle -->
+                <!-- 实时预览：默认折叠，点击标题行展开；面板由 aria-controls 关联 -->
                 <div class="preview-toggle">
-                  <el-switch v-model="livePreview" active-text="实时预览" size="small" />
+                  <button
+                    type="button"
+                    class="preview-toggle-btn"
+                    :aria-expanded="livePreview"
+                    aria-controls="live-preview-panel"
+                    @click="livePreview = !livePreview"
+                  >
+                    <span class="preview-toggle-text">实时预览（填好内容后的效果）</span>
+                    <el-icon
+                      class="preview-toggle-icon"
+                      :class="{ 'is-open': livePreview }"
+                    >
+                      <ArrowDown />
+                    </el-icon>
+                  </button>
                 </div>
 
-                <!-- Live Preview Result -->
-                <div v-if="livePreview && livePreviewResult" class="live-preview">
-                  <div class="live-preview-header">
-                    <span class="live-preview-label">即时预览</span>
-                    <el-button size="small" text @click="copyContent(livePreviewResult)">
-                      <el-icon><CopyDocument /></el-icon> 复制
-                    </el-button>
+                <div v-show="livePreview" id="live-preview-panel">
+                  <!-- Live Preview Result -->
+                  <div v-if="livePreviewResult" class="live-preview">
+                    <div class="live-preview-header">
+                      <span class="live-preview-label">即时预览</span>
+                      <el-button size="small" text @click="copyContent(livePreviewResult)">
+                        <el-icon><CopyDocument /></el-icon> 复制
+                      </el-button>
+                    </div>
+                    <pre class="live-preview-content">{{ livePreviewResult }}</pre>
                   </div>
-                  <pre class="live-preview-content">{{ livePreviewResult }}</pre>
                 </div>
 
                 <!-- Presets -->
@@ -130,7 +150,7 @@
                   >
                     <el-input
                       v-model="variableValues[v]"
-                      :placeholder="`请输入 ${v}`"
+                      :placeholder="`请输入 ${v} 的内容`"
                       @keyup.enter="handleRender"
                     />
                   </el-form-item>
@@ -163,14 +183,6 @@
           </el-col>
         </el-row>
         </div>
-
-        <!-- Loading State -->
-        <div v-if="loading" v-loading="loading" class="loading-container" />
-
-        <div v-if="!prompt && !loading" class="not-found">
-          <p>提示词不存在</p>
-          <el-button @click="goBack">返回列表</el-button>
-        </div>
       </div>
     </Transition>
 
@@ -188,19 +200,24 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  ArrowLeft, Star, StarFilled, Edit, Delete, Clock,
-  CopyDocument, MagicStick, Select, Promotion,
+  ArrowLeft, ArrowDown, Star, StarFilled, Edit, Delete, Clock,
+  CopyDocument, MagicStick, Select, Promotion, Document, DataAnalysis,
 } from '@element-plus/icons-vue'
 import { usePromptsStore } from '../../stores/prompts'
 import { plazaApi } from '../../api/plaza'
 import { renderTemplate } from '../../utils/render'
 import VersionHistoryPanel from '../../components/prompts/VersionHistoryPanel.vue'
+import EmptyState from '../../components/common/EmptyState.vue'
+import ErrorState from '../../components/common/ErrorState.vue'
+import LoadingState from '../../components/common/LoadingState.vue'
 
 const router = useRouter()
 const route = useRoute()
 const promptsStore = usePromptsStore()
 
 const loading = ref(true)
+/** 加载失败标记：用于呈现 ErrorState，而非把失败与"真的不存在"混为一谈 */
+const error = ref(false)
 const rendering = ref(false)
 const renderedResult = ref('')
 const hasUsed = ref(false)
@@ -219,6 +236,7 @@ const livePreviewResult = computed(() => {
 
 async function loadPrompt(id: number) {
   loading.value = true
+  error.value = false
   try {
     await promptsStore.fetchPrompt(id)
     renderedResult.value = ''
@@ -231,6 +249,7 @@ async function loadPrompt(id: number) {
     }
   } catch {
     promptsStore.currentPrompt = null
+    error.value = true
   } finally {
     loading.value = false
   }
@@ -239,6 +258,12 @@ async function loadPrompt(id: number) {
   } catch {
     // presets failure doesn't block main flow
   }
+}
+
+/** 重试：按当前路由 id 重新拉取（供 ErrorState 使用） */
+function retryLoad() {
+  const id = Number(route.params.id)
+  if (id) loadPrompt(id)
 }
 
 onMounted(() => {
@@ -343,7 +368,7 @@ async function handleRender() {
     const result = await promptsStore.renderPrompt(prompt.value.id, { ...variableValues })
     renderedResult.value = result.rendered_content
   } catch {
-    ElMessage.error('渲染失败')
+    ElMessage.error('生成失败，请稍后再试')
   } finally {
     rendering.value = false
   }
@@ -371,18 +396,6 @@ async function copyContent(text: string) {
 </script>
 
 <style scoped>
-.prompt-detail-page {
-  padding: 28px 32px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.loading-container {
-  display: flex;
-  justify-content: center;
-  padding: 100px 0;
-}
-
 /* ── Header ── */
 
 .detail-header {
@@ -414,8 +427,10 @@ async function copyContent(text: string) {
 /* ── Title & Description ── */
 
 .prompt-title {
+  font-family: var(--rh-font-display);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 500;
+  letter-spacing: 0;
   color: var(--rh-text-primary);
   margin-bottom: 8px;
   line-height: 1.35;
@@ -487,10 +502,46 @@ async function copyContent(text: string) {
   margin-bottom: 12px;
 }
 
-/* ── Live Preview ── */
+/* ── Live Preview（默认折叠，点击标题行展开） ── */
 
 .preview-toggle {
   margin-bottom: 12px;
+}
+
+/* 折叠触发器：原生按钮，可聚焦，键盘 Enter/Space 可操作 */
+.preview-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: var(--rh-radius-xs);
+  background: transparent;
+  color: var(--rh-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--rh-transition-all-fast);
+}
+
+.preview-toggle-btn:hover {
+  background: var(--rh-bg-hover);
+  color: var(--rh-text-primary);
+}
+
+.preview-toggle-btn:focus-visible {
+  outline: 2px solid var(--rh-primary);
+  outline-offset: 2px;
+}
+
+.preview-toggle-icon {
+  font-size: 14px;
+  transition: transform var(--rh-duration-fast) var(--rh-transition-fast);
+}
+
+.preview-toggle-icon.is-open {
+  transform: rotate(180deg);
 }
 
 .live-preview {
@@ -562,7 +613,7 @@ async function copyContent(text: string) {
 }
 
 .rendered-content {
-  background: rgba(5, 150, 105, 0.04);
+  background: var(--rh-bg-secondary);
   padding: 18px 20px;
   border-radius: var(--rh-radius-sm);
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
@@ -570,22 +621,11 @@ async function copyContent(text: string) {
   line-height: 1.7;
   white-space: pre-wrap;
   overflow-x: auto;
-  border: 1px solid rgba(5, 150, 105, 0.15);
-  color: var(--rh-success);
+  border: 1px solid var(--rh-border);
+  color: var(--rh-text-primary);
 }
 
 .w-full {
   width: 100%;
-}
-
-.not-found {
-  text-align: center;
-  padding: 100px 0;
-  color: var(--rh-text-tertiary);
-}
-
-.not-found p {
-  margin-bottom: 16px;
-  font-size: 16px;
 }
 </style>

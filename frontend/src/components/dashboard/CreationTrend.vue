@@ -1,13 +1,38 @@
 <template>
-  <div class="viz-card">
-    <div class="viz-head">
-      <p class="eyebrow">近 30 天</p>
-      <h3>创作趋势</h3>
-      <small>每日新增笔记与提示词</small>
-    </div>
-    <div v-if="points.length" ref="chartEl" class="viz-chart"></div>
-    <div v-if="!points.length" class="viz-empty">暂无趋势数据</div>
-  </div>
+  <VizCard
+    eyebrow="近 30 天"
+    title="创作趋势"
+    hint="每日新增笔记与提示词"
+    empty="暂无趋势数据"
+    :has-data="points.length > 0"
+  >
+    <div ref="chartEl" class="viz-chart"></div>
+    <!-- 无障碍数据摘要：屏幕阅读器可读取每日新增量 -->
+    <template #sr-table>
+      <table
+        v-if="points.length"
+        class="viz-sr-table"
+        aria-hidden="false"
+        aria-label="创作趋势数据摘要"
+      >
+        <caption class="sr-only">近 30 天每日新增笔记与提示词数量</caption>
+        <thead>
+          <tr>
+            <th scope="col">日期</th>
+            <th scope="col">笔记</th>
+            <th scope="col">提示词</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in points" :key="p.date">
+            <td>{{ p.date }}</td>
+            <td>{{ p.notes }}</td>
+            <td>{{ p.prompts }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
+  </VizCard>
 </template>
 
 <script setup lang="ts">
@@ -15,16 +40,28 @@
 import { computed, ref } from 'vue'
 import type { TrendPoint } from '../../api/stats'
 import { baseChartOption, themeVar, useChart } from '../../composables/useChart'
+import VizCard from './VizCard.vue'
 
 const props = defineProps<{ points: TrendPoint[] }>()
 
 const chartEl = ref<HTMLElement | null>(null)
 
+/** 全站统一调色板（顺序：主色 → AI 强调 → 成功 → 警告 → 信息 → 主色激活） */
+const palette = computed(() => [
+  themeVar('--rh-primary', '#b03c22'),
+  themeVar('--rh-ai-strong', '#5f7410'),
+  themeVar('--rh-success', '#3f8f6b'),
+  themeVar('--rh-warning', '#9a6a1c'),
+  themeVar('--rh-info', '#6a7268'),
+  themeVar('--rh-primary-active', '#7f2714'),
+])
+
 useChart(chartEl, {
   watchSource: computed(() => props.points),
   buildOption: () => {
-    const primary = themeVar('--rh-primary', '#e85d3f')
-    const ai = themeVar('--rh-ai-strong', '#789415')
+    // 与全站调色板保持同一色序：序号 0 为主色，序号 1 为 AI 强调色
+    const primary = palette.value[0]
+    const ai = palette.value[1]
     return {
       ...baseChartOption(),
       grid: { left: 36, right: 14, top: 34, bottom: 26 },
@@ -32,7 +69,7 @@ useChart(chartEl, {
         top: 0,
         right: 0,
         itemWidth: 14,
-        textStyle: { color: themeVar('--rh-text-secondary'), fontSize: 11 },
+        textStyle: { color: themeVar('--rh-text-secondary'), fontSize: 12 },
       },
       tooltip: { ...baseChartOption().tooltip, trigger: 'axis' },
       xAxis: {
@@ -41,13 +78,13 @@ useChart(chartEl, {
         data: props.points.map((p) => p.date.slice(5)),
         axisLine: { lineStyle: { color: themeVar('--rh-border') } },
         axisTick: { show: false },
-        axisLabel: { color: themeVar('--rh-text-tertiary'), fontSize: 10, interval: 'auto' },
+        axisLabel: { color: themeVar('--rh-text-secondary'), fontSize: 12, interval: 'auto' },
       },
       yAxis: {
         type: 'value',
         minInterval: 1,
         splitLine: { lineStyle: { color: themeVar('--rh-border-faint') } },
-        axisLabel: { color: themeVar('--rh-text-tertiary'), fontSize: 10 },
+        axisLabel: { color: themeVar('--rh-text-secondary'), fontSize: 12 },
       },
       series: [
         {
@@ -73,13 +110,3 @@ useChart(chartEl, {
   },
 })
 </script>
-
-<style scoped>
-.viz-card { border: 1px solid var(--rh-border); background: var(--rh-bg-card); padding: 20px 22px; display: flex; flex-direction: column; }
-.viz-head { margin-bottom: 6px; }
-.viz-head h3 { font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 500; margin: 0; }
-.viz-head small { display: block; margin-top: 4px; color: var(--rh-text-tertiary); font-size: 12px; }
-.eyebrow { margin: 0 0 5px; color: var(--rh-text-tertiary); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.viz-chart { flex: 1; min-height: 240px; }
-.viz-empty { display: grid; place-items: center; flex: 1; min-height: 240px; color: var(--rh-text-tertiary); font-size: 13px; }
-</style>

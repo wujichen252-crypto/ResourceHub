@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.response import error_response, APIError
 from app.core.errors import ErrorCode
-from app.routers import auth, notes, prompts, categories, stats, plaza
+from app.routers import auth, notes, prompts, categories, stats, plaza, ai
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
             # Python 3.10 无 asyncio.timeout（3.11+ 才有），改用 wait_for 兼容
             async def _create_tables():
                 async with engine.begin() as conn:
-                    from app.models import user, note, prompt, category  # noqa
+                    from app.models import user, note, prompt, category, ai  # noqa
                     await conn.run_sync(Base.metadata.create_all)
 
             await asyncio.wait_for(_create_tables(), timeout=8)
@@ -67,6 +67,7 @@ app.include_router(prompts.router, prefix="/api/prompts", tags=["提示词"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
 app.include_router(stats.router, prefix="/api/stats", tags=["统计"])
 app.include_router(plaza.router, prefix="/api/plaza", tags=["资源广场"])
+app.include_router(ai.router, prefix="/api/ai", tags=["AI 能力"])
 
 
 @app.get("/health")

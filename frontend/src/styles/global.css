@@ -2,7 +2,8 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
 html, body, #app { height: 100%; }
-body { font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif; background-color: var(--rh-bg-base); color: var(--rh-text-primary); line-height: 1.6; transition: background-color var(--rh-duration-normal) var(--rh-transition-normal), color var(--rh-duration-normal) var(--rh-transition-normal); }
+/* 字体栈优先使用各平台已装的中文字体，未加载的字体族放在最后作为兜底 */
+body { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'Hiragino Sans GB', sans-serif; background-color: var(--rh-bg-base); color: var(--rh-text-primary); line-height: 1.6; transition: background-color var(--rh-duration-normal) var(--rh-transition-normal), color var(--rh-duration-normal) var(--rh-transition-normal); }
 button, input, textarea, select { font: inherit; } a { color: var(--rh-primary); text-decoration: none; transition: var(--rh-transition-all-normal); } a:hover { color: var(--rh-primary-hover); } ::selection { background: var(--rh-primary-muted); color: var(--rh-primary-active); }
 .app-layout { min-height: 100%; } .app-main { min-height: 100vh; margin-left: var(--rh-nav-width); padding-top: var(--rh-topbar-height); } .app-main.no-nav { margin-left: 0; padding-top: 0; }
 .fade-slide-enter-active, .fade-slide-leave-active { transition: opacity var(--rh-duration-slow) var(--rh-transition-normal), transform var(--rh-duration-slow) var(--rh-transition-normal); } .fade-slide-enter-from { opacity: 0; transform: translateY(10px); } .fade-slide-leave-to { opacity: 0; transform: translateY(-10px); }
@@ -12,3 +13,24 @@ button, input, textarea, select { font: inherit; } a { color: var(--rh-primary);
 .stagger-0 { animation-delay: 0ms; } .stagger-1 { animation-delay: 60ms; } .stagger-2 { animation-delay: 120ms; } .stagger-3 { animation-delay: 180ms; } .stagger-4 { animation-delay: 240ms; } .stagger-5 { animation-delay: 300ms; }
 @media (max-width: 768px) { .app-main { margin-left: 0; padding-top: 60px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+
+/* ── 可访问性工具类 ─────────────────────────────────────────
+   .sr-only：仅供屏幕阅读器的隐藏文本（所有无障碍数据摘要共用一份，避免各组件重复定义） */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* ── 页面外壳工具类 ─────────────────────────────────────────
+   .rh-page 统一各页面内边距与最大宽度：列表型用默认 1320px，详情/编辑/设置型加 .rh-page--narrow */
+.rh-page { width: 100%; margin: 0 auto; padding: var(--rh-page-pad); max-width: var(--rh-page-max); }
+.rh-page--narrow { max-width: var(--rh-page-narrow); }
+
+/* ── 高对比度偏好 ─────────────────────────────────────────
+   用户开启"增强对比度"时，把三级文字提升为二级、边框整体加深，避免细边框与浅灰文字在强对比需求下不可辨 */
+@media (prefers-contrast: more) {
+  :root {
+    --rh-text-tertiary: var(--rh-text-secondary);
+    --rh-text-placeholder: var(--rh-text-secondary);
+    --rh-border: var(--rh-border-strong);
+    --rh-border-faint: var(--rh-border-strong);
+    --rh-border-light: var(--rh-border-strong);
+  }
+}

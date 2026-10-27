@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_current_user
 from app.core.response import orm_to_dict, success_response
 from app.models.user import User
 from app.schemas.note import NoteCreate, NoteDetailResponse, NoteListResponse, NoteUpdate
+from app.services.ai.index_service import index_note_in_background
 from app.services.category_service import CategoryService
 from app.services.note_service import NoteService
 
@@ -79,10 +80,13 @@ async def get_note(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_note(
     data: NoteCreate,
+    background: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     note = await service.create_note(db, current_user.id, data)
+    # 增量索引放到响应之后执行：向量化耗时不应阻塞保存
+    background.add_task(index_note_in_background, current_user.id, note.id)
     return success_response(
         data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="创建笔记成功",
@@ -93,10 +97,12 @@ async def create_note(
 @router.post("/import")
 async def import_or_replace_note(
     data: NoteCreate,
+    background: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     note, replaced = await service.import_or_replace_note(db, current_user.id, data)
+    background.add_task(index_note_in_background, current_user.id, note.id)
     return success_response(
         data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="已替换同目录同名笔记" if replaced else "导入笔记成功",
@@ -107,10 +113,13 @@ async def import_or_replace_note(
 async def update_note(
     note_id: int,
     data: NoteUpdate,
+    background: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     note = await service.update_note(db, note_id, current_user.id, data)
+    # 自动保存会高频触发，索引任务内部做整篇重建，天然幂等
+    background.add_task(index_note_in_background, current_user.id, note.id)
     return success_response(
         data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="更新笔记成功",

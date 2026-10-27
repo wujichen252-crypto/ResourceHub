@@ -1,0 +1,137 @@
+/* ============================================================
+   Markdown 排版层（markdown.css）
+   NoteReader（笔记阅读态）与 PlazaDetail（资源广场详情）共用的
+   Markdown 渲染排版样式，统一作用于 `.rh-markdown` 容器，
+   用于承载 v-html 渲染出的 Markdown / 富文本 HTML。
+   取值以 NoteReader 为主（主阅读体验），并保留 PlazaDetail
+   独有的列表 / 链接 / 分割线等规则。全部颜色与圆角均使用设计
+   令牌，禁止硬编码色值与圆角。
+   注意：本文件为全局样式（非 scoped），因此无需 :deep() 即可
+   命中动态注入的 Markdown 子元素。
+   ============================================================ */
+
+/* 标题：统一上下留白与字重 */
+.rh-markdown h1,
+.rh-markdown h2,
+.rh-markdown h3 {
+  margin-top: 28px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.rh-markdown h1 {
+  font-size: 24px;
+  border-bottom: 1px solid var(--rh-border-light);
+  padding-bottom: 8px;
+}
+
+.rh-markdown h2 {
+  font-size: 20px;
+  border-bottom: 1px solid var(--rh-border-light);
+  padding-bottom: 6px;
+}
+
+.rh-markdown h3 {
+  font-size: 17px;
+}
+
+/* 首个标题 / 段落去掉顶部留白（PlazaDetail 独有规则） */
+.rh-markdown h1:first-child,
+.rh-markdown h2:first-child,
+.rh-markdown h3:first-child,
+.rh-markdown p:first-child {
+  margin-top: 0;
+}
+
+/* 段落 */
+.rh-markdown p {
+  margin-bottom: 16px;
+}
+
+/* 列表（PlazaDetail 独有规则） */
+.rh-markdown ul,
+.rh-markdown ol {
+  margin: 0 0 16px;
+  padding-left: 26px;
+}
+
+.rh-markdown li {
+  margin-bottom: 6px;
+}
+
+/* 行内代码 */
+.rh-markdown code {
+  background: var(--rh-bg-subtle);
+  padding: 2px 8px;
+  border-radius: var(--rh-radius-xs);
+  font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--rh-primary);
+}
+
+/* 代码块：深浅色主题下均依赖令牌保证可见 */
+.rh-markdown pre {
+  background: var(--rh-code-bg);
+  padding: 20px;
+  border-radius: var(--rh-radius-md);
+  overflow-x: auto;
+  margin: 20px 0;
+}
+
+.rh-markdown pre code {
+  background: none;
+  padding: 0;
+  color: var(--rh-code-text);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+/* 引用块 */
+.rh-markdown blockquote {
+  border-left: 3px solid var(--rh-primary);
+  padding: 4px 0 4px 20px;
+  color: var(--rh-text-secondary);
+  margin: 20px 0;
+  background: var(--rh-bg-subtle);
+  border-radius: 0 var(--rh-radius-md) var(--rh-radius-md) 0;
+}
+
+/* 链接（PlazaDetail 独有规则） */
+.rh-markdown a {
+  color: var(--rh-primary);
+  text-decoration: underline;
+}
+
+/* 图片 */
+.rh-markdown img {
+  max-width: 100%;
+  border-radius: var(--rh-radius-md);
+  margin: 16px 0;
+}
+
+/* 表格 */
+.rh-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+
+.rh-markdown th,
+.rh-markdown td {
+  border: 1px solid var(--rh-border);
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.rh-markdown th {
+  background: var(--rh-bg-subtle);
+  font-weight: 600;
+}
+
+/* 分割线（PlazaDetail 独有规则） */
+.rh-markdown hr {
+  border: none;
+  border-top: 1px solid var(--rh-border);
+  margin: 20px 0;
+}

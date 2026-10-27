@@ -1,7 +1,29 @@
 import axios from 'axios'
-import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
+import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
+
+/**
+ * 长任务超时（毫秒）。
+ * 索引重建、提示词评测需要多次调用模型，普通请求的 10 秒必然不够；
+ * 这类接口必须显式传入该超时，否则用户会看到“请求超时”而后台其实还在执行。
+ */
+export const LONG_TASK_TIMEOUT = 300000
+
+/** 把网络层异常翻译成用户能看懂的中文，避免直接暴露 Network Error / timeout 英文原文 */
+function describeNetworkError(error: AxiosError): string {
+  if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message)) {
+    return '等待时间过长，服务没有响应，请稍后再试'
+  }
+  if (!error.response) {
+    return '网络连接不可用，请检查网络后重试'
+  }
+  const status = error.response.status
+  if (status === 403) return '没有权限执行这个操作'
+  if (status === 429) return '操作太频繁，请稍后再试'
+  if (status >= 500) return '服务暂时不可用，请稍后再试'
+  return '请求失败，请稍后再试'
+}
 
 export interface ApiResponse<T = any> {
   code: number
@@ -72,13 +94,23 @@ http.interceptors.response.use(
 
     if (error.response?.data?.msg) {
       ElMessage.error(error.response.data.msg)
-    } else if (error.message) {
-      ElMessage.error(error.message)
+    } else {
+      ElMessage.error(describeNetworkError(error))
     }
 
     return Promise.reject(error)
   },
 )
+
+/** 从请求异常中提取可展示的文案：优先取后端 msg，其次取 Error.message */
+export function getApiErrorMessage(error: unknown, fallback = '请求失败'): string {
+  if (axios.isAxiosError(error)) {
+    const payload = error.response?.data as { msg?: string } | undefined
+    if (payload?.msg) return payload.msg
+    return describeNetworkError(error)
+  }
+  return error instanceof Error ? error.message : fallback
+}
 
 /** 会话失效后跳转到登录页，保留当前路径以便登录后返回 */
 function redirectToLogin() {

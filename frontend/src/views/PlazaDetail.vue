@@ -1,16 +1,19 @@
 <template>
-  <div class="plaza-detail-page">
+  <div class="rh-page rh-page--narrow">
     <!-- Loading -->
-    <div v-if="loading" class="center-state">
-      <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-    </div>
+    <LoadingState v-if="loading" variant="detail" />
 
-    <!-- Error / Unpublished -->
-    <div v-else-if="!detail" class="center-state empty-state">
-      <el-icon :size="48" color="var(--rh-text-tertiary)"><DocumentDelete /></el-icon>
-      <p>该内容不存在或已被作者取消发布</p>
+    <!-- Load Error -->
+    <ErrorState v-else-if="error" @retry="load" />
+
+    <!-- Empty / Unpublished -->
+    <EmptyState
+      v-else-if="!detail"
+      :icon="DocumentDelete"
+      title="该内容不存在或已被作者取消发布"
+    >
       <el-button type="primary" @click="router.push('/plaza')">返回资源广场</el-button>
-    </div>
+    </EmptyState>
 
     <!-- Content -->
     <div v-else class="detail-layout animate-fade-in-up">
@@ -58,7 +61,7 @@
         <el-divider />
 
         <!-- 笔记：Markdown/HTML 渲染；提示词：模板文本按原样展示 -->
-        <div v-if="detail.type === 'note'" class="detail-content" v-html="renderedContent" />
+        <div v-if="detail.type === 'note'" class="detail-content rh-markdown" v-html="renderedContent" />
         <pre v-else class="detail-content detail-plain">{{ detail.content }}</pre>
       </div>
     </div>
@@ -68,13 +71,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, CopyDocument, DocumentDelete, Loading } from '@element-plus/icons-vue'
+import { ArrowLeft, CopyDocument, DocumentDelete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { plazaApi } from '../api/plaza'
 import type { PlazaContentType, PlazaDetail } from '../api/plaza'
 import { usePlazaStore } from '../stores/plaza'
+import { formatDateTime } from '../utils/format'
+import EmptyState from '../components/common/EmptyState.vue'
+import ErrorState from '../components/common/ErrorState.vue'
+import LoadingState from '../components/common/LoadingState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,6 +92,8 @@ const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
 const loading = ref(true)
 const forking = ref(false)
 const detail = ref<PlazaDetail | null>(null)
+/** 加载失败标记：用于在页面上呈现 ErrorState 而非停在空白 */
+const error = ref(false)
 
 /** 判断内容是否为 HTML（TipTap 富文本编辑器产物），否则按 Markdown 处理 */
 function isHtml(str: string): boolean {
@@ -102,24 +111,32 @@ function validType(val: unknown): val is PlazaContentType {
   return val === 'note' || val === 'prompt'
 }
 
-onMounted(async () => {
+/** 拉取详情：失败置 error 供 ErrorState 重试；非法参数走空态 */
+async function load() {
   const type = route.params.type
   const id = Number(route.params.id)
   if (!validType(type) || !Number.isInteger(id) || id <= 0) {
     loading.value = false
+    detail.value = null
+    error.value = false
     return
   }
+  loading.value = true
+  error.value = false
   try {
     detail.value = await plazaApi.detail(type, id)
   } catch {
     detail.value = null
+    error.value = true
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('zh-CN')
+  return formatDateTime(iso)
 }
 
 function goBack() {
@@ -154,22 +171,6 @@ async function handleFork() {
 </script>
 
 <style scoped>
-.plaza-detail-page {
-  padding: 28px 32px;
-  max-width: 960px;
-  margin: 0 auto;
-}
-
-.center-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  min-height: 50vh;
-  color: var(--rh-text-tertiary);
-}
-
 .detail-topbar {
   display: flex;
   justify-content: space-between;
@@ -190,12 +191,13 @@ async function handleFork() {
 }
 
 .detail-title {
+  font-family: var(--rh-font-display);
   font-size: 30px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--rh-text-primary);
   margin: 0 0 16px;
   line-height: 1.35;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .detail-meta {
@@ -241,7 +243,7 @@ async function handleFork() {
 
 /* 提示词等纯文本内容保持原样展示 */
 .detail-plain {
-  background: var(--rh-bg-secondary, #f5f5f5);
+  background: var(--rh-bg-secondary);
   border: 1px solid var(--rh-border);
   border-radius: 10px;
   padding: 20px;
@@ -252,126 +254,7 @@ async function handleFork() {
   margin: 0;
 }
 
-/* Markdown 渲染排版 */
-.detail-content :deep(h1),
-.detail-content :deep(h2),
-.detail-content :deep(h3) {
-  margin-top: 28px;
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.detail-content :deep(h1) {
-  font-size: 24px;
-  border-bottom: 1px solid var(--rh-border);
-  padding-bottom: 8px;
-}
-
-.detail-content :deep(h2) {
-  font-size: 20px;
-  border-bottom: 1px solid var(--rh-border);
-  padding-bottom: 6px;
-}
-
-.detail-content :deep(h3) {
-  font-size: 17px;
-}
-
-.detail-content :deep(h1:first-child),
-.detail-content :deep(h2:first-child),
-.detail-content :deep(h3:first-child),
-.detail-content :deep(p:first-child) {
-  margin-top: 0;
-}
-
-.detail-content :deep(p) {
-  margin-bottom: 16px;
-}
-
-.detail-content :deep(ul),
-.detail-content :deep(ol) {
-  margin: 0 0 16px;
-  padding-left: 26px;
-}
-
-.detail-content :deep(li) {
-  margin-bottom: 6px;
-}
-
-.detail-content :deep(code) {
-  background: var(--rh-bg-subtle, rgba(0, 0, 0, 0.06));
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-}
-
-.detail-content :deep(pre) {
-  background: #1c1917;
-  padding: 20px;
-  border-radius: 10px;
-  overflow-x: auto;
-  margin: 20px 0;
-}
-
-.detail-content :deep(pre code) {
-  background: none;
-  padding: 0;
-  color: #e7e5e4;
-  font-size: 13.5px;
-  line-height: 1.6;
-}
-
-.detail-content :deep(blockquote) {
-  border-left: 3px solid var(--rh-primary);
-  padding: 4px 0 4px 20px;
-  color: var(--rh-text-secondary);
-  margin: 20px 0;
-  background: var(--rh-bg-subtle, rgba(0, 0, 0, 0.03));
-  border-radius: 0 8px 8px 0;
-}
-
-.detail-content :deep(a) {
-  color: var(--rh-primary);
-  text-decoration: underline;
-}
-
-.detail-content :deep(img) {
-  max-width: 100%;
-  border-radius: 8px;
-  margin: 16px 0;
-}
-
-.detail-content :deep(table) {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-}
-
-.detail-content :deep(th),
-.detail-content :deep(td) {
-  border: 1px solid var(--rh-border);
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 14px;
-}
-
-.detail-content :deep(th) {
-  background: var(--rh-bg-subtle, rgba(0, 0, 0, 0.04));
-  font-weight: 600;
-}
-
-.detail-content :deep(hr) {
-  border: none;
-  border-top: 1px solid var(--rh-border);
-  margin: 20px 0;
-}
-
 @media (max-width: 640px) {
-  .plaza-detail-page {
-    padding: 20px 16px;
-  }
-
   .detail-title {
     font-size: 24px;
   }

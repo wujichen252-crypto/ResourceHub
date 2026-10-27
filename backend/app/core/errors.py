@@ -45,6 +45,13 @@ class ErrorCode(IntEnum):
 
     CANNOT_REACT_OWN_NOTE = 6001
 
+    AI_NOT_CONFIGURED = 7001
+    AI_PROVIDER_ERROR = 7002
+    AI_QUOTA_EXCEEDED = 7003
+    AI_CONTENT_BLOCKED = 7004
+    AI_RUN_NOT_FOUND = 7005
+    AI_CONFIRM_REQUIRED = 7006
+
 
 ERROR_MESSAGES = {
     ErrorCode.SUCCESS: "操作成功",
@@ -70,6 +77,12 @@ ERROR_MESSAGES = {
     ErrorCode.PRESET_NOT_FOUND: "预设不存在",
     ErrorCode.PLAZA_ITEM_NOT_FOUND: "广场内容不存在或未发布",
     ErrorCode.INVALID_CONTENT_TYPE: "内容类型无效",
+    ErrorCode.AI_NOT_CONFIGURED: "AI 功能还没有启用，请在项目配置文件中填写 AI 服务密钥后再试",
+    ErrorCode.AI_PROVIDER_ERROR: "AI 服务暂时不可用，请稍后再试",
+    ErrorCode.AI_QUOTA_EXCEEDED: "今天的 AI 使用次数已用完，请明天再试",
+    ErrorCode.AI_CONTENT_BLOCKED: "内容未通过安全检查",
+    ErrorCode.AI_RUN_NOT_FOUND: "Agent 运行记录不存在",
+    ErrorCode.AI_CONFIRM_REQUIRED: "该操作需要用户确认后执行",
 }
 
 

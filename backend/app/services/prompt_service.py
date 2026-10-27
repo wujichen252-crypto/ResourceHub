@@ -12,6 +12,15 @@ from app.schemas.prompt import (
 )
 
 
+def render_template(template: str, variables: dict[str, str]) -> str:
+    """按 {{变量}} 模板语法渲染；未提供的变量保留原占位符"""
+    def replace_var(match):
+        var_name = match.group(1).strip()
+        return variables.get(var_name, match.group(0))
+
+    return re.sub(r'\{\{(\w+)\}\}', replace_var, template)
+
+
 class PromptService:
     async def get_prompts(
         self, db: AsyncSession, user_id: int,
@@ -309,7 +318,4 @@ class PromptService:
         await db.commit()
 
     def _render_template(self, template: str, variables: dict[str, str]) -> str:
-        def replace_var(match):
-            var_name = match.group(1).strip()
-            return variables.get(var_name, match.group(0))
-        return re.sub(r'\{\{(\w+)\}\}', replace_var, template)
+        return render_template(template, variables)

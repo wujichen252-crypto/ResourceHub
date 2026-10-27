@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="用量分析"
-    width="600px"
+    width="min(600px, 92vw)"
     @open="loadData"
   >
     <div v-if="loading" v-loading="loading" class="loading" />
@@ -53,6 +53,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { usePromptsStore } from '../../stores/prompts'
+import { formatDate } from '../../utils/format'
 
 const props = defineProps<{
   modelValue: boolean
@@ -79,12 +80,6 @@ const maxCount = computed(() => {
 
 function barWidth(count: number): string {
   return `${(count / maxCount.value) * 100}%`
-}
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr + 'T00:00:00')
-  return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
 async function loadData() {

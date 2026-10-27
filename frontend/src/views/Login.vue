@@ -14,7 +14,6 @@
       <div class="login-card animate-fade-in-up" :key="activeTab">
         <!-- Logo -->
         <div class="login-header">
-          <span class="logo-dot">◆</span>
           <h1 class="login-title">ResourceHub</h1>
           <p class="login-subtitle">知识管理与 AI 提示词库</p>
         </div>
@@ -30,13 +29,20 @@
               @keyup.enter="handleLogin"
             >
               <el-form-item label="用户名" prop="username">
-                <el-input v-model="loginForm.username" placeholder="请输入用户名" />
+                <el-input
+                  v-model="loginForm.username"
+                  name="username"
+                  autocomplete="username"
+                  placeholder="请输入用户名"
+                />
               </el-form-item>
               <el-form-item label="密码" prop="password">
                 <el-input
                   v-model="loginForm.password"
                   type="password"
                   show-password
+                  name="password"
+                  autocomplete="current-password"
                   placeholder="请输入密码"
                 />
               </el-form-item>
@@ -62,16 +68,29 @@
               @keyup.enter="handleRegister"
             >
               <el-form-item label="用户名" prop="username">
-                <el-input v-model="registerForm.username" placeholder="3-50 位字母/数字/下划线" />
+                <el-input
+                  v-model="registerForm.username"
+                  name="username"
+                  autocomplete="username"
+                  placeholder="3-50 位字母/数字/下划线"
+                />
               </el-form-item>
               <el-form-item label="邮箱" prop="email">
-                <el-input v-model="registerForm.email" placeholder="选填" />
+                <el-input
+                  v-model="registerForm.email"
+                  type="email"
+                  name="email"
+                  autocomplete="email"
+                  placeholder="选填"
+                />
               </el-form-item>
               <el-form-item label="密码" prop="password">
                 <el-input
                   v-model="registerForm.password"
                   type="password"
                   show-password
+                  name="new-password"
+                  autocomplete="new-password"
                   placeholder="至少 8 位"
                 />
               </el-form-item>
@@ -80,6 +99,8 @@
                   v-model="registerForm.confirmPassword"
                   type="password"
                   show-password
+                  name="confirm-password"
+                  autocomplete="new-password"
                   placeholder="再次输入密码"
                 />
               </el-form-item>
@@ -106,13 +127,31 @@
       >
         <el-form label-position="top" @keyup.enter="handleForgotPassword">
           <el-form-item label="用户名">
-            <el-input v-model="forgotForm.username" placeholder="请输入注册时的用户名" />
+            <el-input
+              v-model="forgotForm.username"
+              name="username"
+              autocomplete="username"
+              placeholder="请输入注册时的用户名"
+            />
           </el-form-item>
           <el-form-item label="邮箱">
-            <el-input v-model="forgotForm.email" placeholder="请输入注册时填写的邮箱" />
+            <el-input
+              v-model="forgotForm.email"
+              type="email"
+              name="email"
+              autocomplete="email"
+              placeholder="请输入注册时填写的邮箱"
+            />
           </el-form-item>
           <el-form-item label="新密码">
-            <el-input v-model="forgotForm.newPassword" type="password" show-password placeholder="至少 8 位" />
+            <el-input
+              v-model="forgotForm.newPassword"
+              type="password"
+              show-password
+              name="new-password"
+              autocomplete="new-password"
+              placeholder="至少 8 位"
+            />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" :loading="forgotLoading" class="submit-btn" @click="handleForgotPassword">
@@ -264,13 +303,8 @@ async function handleForgotPassword() {
 .login-container { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); min-height: 100vh; background: var(--rh-bg-base); }
 .login-intro { position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: 9vh 8vw 7vh; background: var(--rh-text-primary); color: var(--rh-bg-card); }
 .login-intro::before, .login-intro::after { position: absolute; border: 1px solid rgba(183,216,75,.34); border-radius: 50%; content: ''; pointer-events: none; }.login-intro::before { width: 520px; height: 520px; right: -220px; bottom: -190px; }.login-intro::after { width: 260px; height: 260px; right: 70px; bottom: 40px; }
-.intro-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; font-family: Georgia, serif; font-size: 19px; }.intro-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--rh-ai); color: var(--rh-text-primary); font-size: 21px; font-weight: 700; }
-.intro-copy { position: relative; z-index: 1; max-width: 550px; }.intro-kicker { margin-bottom: 22px; color: var(--rh-ai); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }.intro-copy h1 { max-width: 540px; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(40px, 5vw, 72px); font-weight: 400; line-height: 1.04; }.intro-copy p { max-width: 420px; margin-top: 24px; color: rgba(255,255,255,.64); font-size: 16px; line-height: 1.8; }.intro-notes { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; }.intro-note { padding: 7px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 3px; color: rgba(255,255,255,.72); font-size: 12px; }.intro-note.ai { border-color: rgba(183,216,75,.45); color: var(--rh-ai); }
-.login-panel { display: flex; align-items: center; justify-content: center; padding: 40px 7vw; background: var(--rh-bg-card); min-height: 100vh; }.login-card { width: 100%; max-width: 420px; overflow: visible; }.login-header { margin-bottom: 34px; }.logo-dot { display: none; }.login-title { margin: 0 0 8px; color: var(--rh-text-primary); font-family: Georgia, serif; font-size: 32px; font-weight: 500; }.login-subtitle { margin: 0; color: var(--rh-text-tertiary); font-size: 14px; }.login-tabs :deep(.el-tabs__item) { color: var(--rh-text-tertiary); font-size: 14px; font-weight: 700; }.login-tabs :deep(.el-tabs__item.is-active) { color: var(--rh-primary); }.login-tabs :deep(.el-tabs__active-bar) { background: var(--rh-primary); }.login-tabs :deep(.el-tabs__nav-wrap::after) { background: var(--rh-border); }.login-tabs :deep(.el-tabs__content) { overflow: visible; }.login-tabs :deep(.el-form-item) { margin-bottom: 20px; }.login-tabs :deep(.el-form-item__label) { color: var(--rh-text-secondary); font-size: 13px; font-weight: 700; margin-bottom: 8px; position: static !important; }.login-tabs :deep(.el-form-item__content) { min-width: 0; }.login-tabs :deep(.el-input) { display: block; width: 100%; min-width: 0; }.login-tabs :deep(.el-input__wrapper), .login-tabs :deep(.el-input__wrapper:hover), .login-tabs :deep(.el-input__wrapper.is-focus), .login-tabs :deep(.el-input.is-focus .el-input__wrapper) { width: 100%; height: 44px !important; min-height: 44px !important; padding: 8px 12px !important; box-sizing: border-box; transform: none !important; }.login-tabs :deep(.el-input__wrapper.is-focus), .login-tabs :deep(.el-input.is-focus .el-input__wrapper) { box-shadow: 0 0 0 2px var(--rh-primary-muted) inset !important; }.login-tabs :deep(.el-input__inner) { height: 100%; line-height: 28px; }.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.submit-btn { height: 44px; font-size: 14px; }.forgot-dialog .el-dialog { border-radius: var(--rh-radius-md); }
-@media (max-width: 760px) { .login-container { display: block; }.login-intro { min-height: 250px; padding: 28px 24px; }.intro-copy { margin-top: 45px; }.intro-copy h1 { font-size: 38px; }.intro-copy p, .intro-notes { display: none; }.login-panel { min-height: calc(100vh - 250px); padding: 42px 24px; }.login-title { font-size: 28px; } }
-</style>
-
-<style>
-.login-intro { display: flex; }
-.login-panel { display: flex; }
+.intro-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; font-family: var(--rh-font-display); font-size: 19px; }.intro-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--rh-ai); color: var(--rh-on-ai); font-size: 21px; font-weight: 700; }
+.intro-copy { position: relative; z-index: 1; max-width: 550px; }.intro-kicker { margin-bottom: 22px; color: var(--rh-ai); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }.intro-copy h1 { max-width: 540px; font-family: var(--rh-font-display); font-size: clamp(40px, 5vw, 72px); font-weight: 400; line-height: 1.04; }.intro-copy p { max-width: 420px; margin-top: 24px; color: var(--rh-on-inverse-soft); font-size: 16px; line-height: 1.8; }.intro-notes { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; }.intro-note { padding: 7px 10px; border: 1px solid var(--rh-on-inverse-border); border-radius: 3px; color: var(--rh-on-inverse-soft); font-size: 12px; }.intro-note.ai { border-color: rgba(183,216,75,.45); color: var(--rh-ai); }
+.login-panel { display: flex; align-items: center; justify-content: center; padding: 40px 7vw; background: var(--rh-bg-card); min-height: 100vh; }.login-card { width: 100%; max-width: 420px; overflow: visible; }.login-header { margin-bottom: 34px; }.login-title { margin: 0 0 8px; color: var(--rh-text-primary); font-family: var(--rh-font-display); font-size: 32px; font-weight: 500; }.login-subtitle { margin: 0; color: var(--rh-text-tertiary); font-size: 14px; }.login-tabs :deep(.el-tabs__item) { color: var(--rh-text-tertiary); font-size: 14px; font-weight: 700; }.login-tabs :deep(.el-tabs__item.is-active) { color: var(--rh-primary); }.login-tabs :deep(.el-tabs__active-bar) { background: var(--rh-primary); }.login-tabs :deep(.el-tabs__nav-wrap::after) { background: var(--rh-border); }.login-tabs :deep(.el-tabs__content) { overflow: visible; }.login-tabs :deep(.el-form-item) { margin-bottom: 20px; }.login-tabs :deep(.el-form-item__label) { color: var(--rh-text-secondary); font-size: 13px; font-weight: 700; margin-bottom: 8px; position: static !important; }.login-tabs :deep(.el-form-item__content) { min-width: 0; }.login-tabs :deep(.el-input) { display: block; width: 100%; min-width: 0; }.login-tabs :deep(.el-input__wrapper), .login-tabs :deep(.el-input__wrapper:hover), .login-tabs :deep(.el-input__wrapper.is-focus), .login-tabs :deep(.el-input.is-focus .el-input__wrapper) { width: 100%; height: 44px !important; min-height: 44px !important; padding: 8px 12px !important; box-sizing: border-box; transform: none !important; }.login-tabs :deep(.el-input__wrapper.is-focus), .login-tabs :deep(.el-input.is-focus .el-input__wrapper) { box-shadow: 0 0 0 2px var(--rh-primary-muted) inset !important; }.login-tabs :deep(.el-input__inner) { height: 100%; line-height: 28px; }.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.submit-btn { height: 44px; font-size: 14px; }.forgot-dialog .el-dialog { border-radius: var(--rh-radius-md); }
+@media (max-width: 900px) { .login-container { display: block; }.login-intro { min-height: 250px; padding: 28px 24px; }.intro-copy { margin-top: 45px; }.intro-copy h1 { font-size: 38px; }.intro-copy p, .intro-notes { display: none; }.login-panel { min-height: calc(100vh - 250px); padding: 42px 24px; }.login-title { font-size: 28px; } }
 </style>

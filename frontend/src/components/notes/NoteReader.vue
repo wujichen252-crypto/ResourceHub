@@ -47,7 +47,7 @@
 
       <el-divider />
 
-      <div class="note-content" v-html="sanitizedContent" />
+      <div class="note-content rh-markdown" v-html="sanitizedContent" />
     </div>
   </div>
 </template>
@@ -59,6 +59,7 @@ import { ElMessageBox } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import type { Note } from '../../api/notes'
+import { formatDateTime } from '../../utils/format'
 
 const md = new MarkdownIt({ html: false, linkify: true, typographer: true })
 
@@ -88,8 +89,7 @@ const sanitizedContent = computed(() => {
 })
 
 function formatTime(dateStr: string) {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleString('zh-CN')
+  return formatDateTime(dateStr)
 }
 
 function handleTogglePin() {
@@ -114,7 +114,7 @@ async function handleDelete() {
 .note-reader {
   max-width: 860px;
   margin: 0 auto;
-  padding: 24px 32px;
+  padding: var(--rh-page-pad);
 }
 
 .reader-header {
@@ -136,6 +136,7 @@ async function handleDelete() {
 }
 
 .note-title {
+  font-family: var(--rh-font-display);
   font-size: 30px;
   font-weight: 700;
   color: var(--rh-text-primary);
@@ -168,92 +169,5 @@ async function handleDelete() {
   font-size: 15.5px;
   line-height: 1.85;
   color: var(--rh-text-primary);
-}
-
-.note-content :deep(h1),
-.note-content :deep(h2),
-.note-content :deep(h3) {
-  margin-top: 28px;
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.note-content :deep(h1) {
-  font-size: 24px;
-  border-bottom: 1px solid var(--rh-border-light);
-  padding-bottom: 8px;
-}
-
-.note-content :deep(h2) {
-  font-size: 20px;
-  border-bottom: 1px solid var(--rh-border-light);
-  padding-bottom: 6px;
-}
-
-.note-content :deep(h3) {
-  font-size: 17px;
-}
-
-.note-content :deep(p) {
-  margin-bottom: 16px;
-}
-
-.note-content :deep(code) {
-  background: var(--rh-bg-subtle);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  color: var(--rh-primary);
-}
-
-.note-content :deep(pre) {
-  background: #1c1917;
-  padding: 20px;
-  border-radius: 10px;
-  overflow-x: auto;
-  margin: 20px 0;
-}
-
-.note-content :deep(pre code) {
-  background: none;
-  padding: 0;
-  color: #e7e5e4;
-  font-size: 13.5px;
-  line-height: 1.6;
-}
-
-.note-content :deep(blockquote) {
-  border-left: 3px solid var(--rh-primary);
-  padding: 4px 0 4px 20px;
-  color: var(--rh-text-secondary);
-  margin: 20px 0;
-  background: var(--rh-bg-subtle);
-  border-radius: 0 8px 8px 0;
-}
-
-.note-content :deep(img) {
-  max-width: 100%;
-  border-radius: 8px;
-  margin: 16px 0;
-}
-
-.note-content :deep(table) {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-}
-
-.note-content :deep(th),
-.note-content :deep(td) {
-  border: 1px solid var(--rh-border);
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 14px;
-}
-
-.note-content :deep(th) {
-  background: var(--rh-bg-subtle);
-  font-weight: 600;
 }
 </style>
