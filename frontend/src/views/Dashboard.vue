@@ -25,6 +25,20 @@
       <div class="overview-panel"><p class="eyebrow">资源概览</p><h2>你的工作台</h2><div class="metric-list"><div><strong>{{ stats.noteCount }}</strong><span>篇笔记</span></div><div><strong>{{ stats.promptCount }}</strong><span>个提示词</span></div><div><strong>{{ stats.favoriteCount }}</strong><span>个收藏</span></div></div><div class="ai-callout"><span class="ai-symbol">✦</span><div><strong>让资源持续产生价值</strong><p>把一次性的好想法，保存成下一次可以直接复用的模板。</p></div></div></div>
     </section>
 
+    <section v-if="unreadProactive.length" class="proactive-section animate-fade-in-up">
+      <div class="section-heading">
+        <div><p class="eyebrow ai-label">AI 主动提醒</p><h2>你的知识分身有话要说</h2></div>
+        <router-link to="/ai">进入工作台 <el-icon><ArrowRight /></el-icon></router-link>
+      </div>
+      <div class="proactive-list">
+        <router-link v-for="message in unreadProactive.slice(0, 2)" :key="message.id" to="/ai" class="proactive-row">
+          <span class="proactive-mark"><el-icon><Bell /></el-icon></span>
+          <span class="resource-body"><strong>{{ message.title }}</strong><small>{{ message.content }}</small></span>
+          <el-icon class="row-arrow"><ArrowRight /></el-icon>
+        </router-link>
+      </div>
+    </section>
+
     <section v-if="overview" class="viz-grid animate-fade-in-up stagger-4">
       <TagCloud :items="overview.tag_cloud" />
       <CreationTrend :points="overview.creation_trend" />
@@ -37,24 +51,27 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowRight, Document, EditPen, MagicStick, Plus, Search } from '@element-plus/icons-vue'
+import { ArrowRight, Bell, Document, EditPen, MagicStick, Plus, Search } from '@element-plus/icons-vue'
 import { useNotesStore } from '../stores/notes'
 import { usePromptsStore } from '../stores/prompts'
 import { formatRelative } from '../utils/format'
 import { statsApi, type StatsOverview } from '../api/stats'
+import { useAgentIdentityStore } from '../stores/agentIdentity'
 import TagCloud from '../components/dashboard/TagCloud.vue'
 import CreationTrend from '../components/dashboard/CreationTrend.vue'
 import CategoryDonut from '../components/dashboard/CategoryDonut.vue'
 import UsageHeatmap from '../components/dashboard/UsageHeatmap.vue'
 
-const router = useRouter(); const notesStore = useNotesStore(); const promptsStore = usePromptsStore()
+const router = useRouter(); const notesStore = useNotesStore(); const promptsStore = usePromptsStore(); const identity = useAgentIdentityStore()
 const stats = reactive({ noteCount: 0, promptCount: 0, favoriteCount: 0 }); const recentNotes = ref<any[]>([]); const topPrompts = ref<any[]>([]); const notesLoading = ref(true); const promptsLoading = ref(true)
 const overview = ref<StatsOverview | null>(null)
+const unreadProactive = computed(() => identity.proactive.filter((item) => item.status === 'unread'))
 const todayLabel = computed(() => { const d = new Date(); return `${d.getFullYear()} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${String(d.getDate()).padStart(2, '0')}` })
 function formatTime(value: string) { return formatRelative(value) || '最近更新' }
 onMounted(async () => {
   // 图表统计与主内容并行请求，统计失败不阻塞主内容
   const statsPromise = statsApi.overview().then((d) => { overview.value = d }).catch(() => { /* 统计失败不阻塞主内容 */ })
+  const proactivePromise = identity.loadProactive().catch(() => { /* 主动消息失败不阻塞主内容 */ })
   try {
     await notesStore.fetchNotes()
     recentNotes.value = notesStore.notes
@@ -69,7 +86,7 @@ onMounted(async () => {
     await promptsStore.fetchFavoriteTotal()
     stats.favoriteCount = promptsStore.favoriteTotal
   } finally { promptsLoading.value = false }
-  await statsPromise
+  await Promise.all([statsPromise, proactivePromise])
 })
 </script>
 
@@ -78,6 +95,7 @@ onMounted(async () => {
 .search-launch { display: flex; align-items: center; width: 100%; height: 52px; padding: 0 16px; border: 1px solid var(--rh-border); border-radius: var(--rh-radius-sm); background: var(--rh-bg-card); color: var(--rh-text-secondary); text-align: left; cursor: pointer; box-shadow: var(--rh-shadow-sm); transition: var(--rh-transition-all-normal); }.search-launch:hover { border-color: var(--rh-primary); box-shadow: var(--rh-shadow-md); }.search-launch :deep(.el-icon) { margin-right: 11px; color: var(--rh-primary); font-size: 18px; }.search-hint { margin-left: auto; color: var(--rh-text-tertiary); font-size: 12px; }
 .continue-section { margin-top: 54px; }.section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }.section-heading h2, .overview-panel h2 { font-family: var(--rh-font-display); font-size: 23px; font-weight: 500; }.section-heading a { display: inline-flex; align-items: center; gap: 4px; color: var(--rh-text-secondary); font-size: 13px; font-weight: 600; }.section-heading a:hover { color: var(--rh-primary); }.section-heading a :deep(.el-icon) { font-size: 14px; }.continue-grid { border-top: 1px solid var(--rh-border); }.resource-row, .prompt-row { position: relative; display: flex; align-items: center; gap: 13px; min-height: 70px; padding: 10px 0; border-bottom: 1px solid var(--rh-border-faint); color: var(--rh-text-primary); transition: var(--rh-transition-all-normal); }.resource-row::before, .prompt-row::before { position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; border-radius: 1px; background: transparent; content: ''; transition: var(--rh-transition-all-fast); }.resource-row:hover, .prompt-row:hover { background: var(--rh-bg-hover); }.resource-row:hover::before, .prompt-row:hover::before { background: var(--rh-primary); }.resource-mark { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 50%; flex: 0 0 auto; }.note-mark { background: var(--rh-primary-subtle); color: var(--rh-primary); }.resource-body { display: block; min-width: 0; flex: 1; }.resource-body strong, .resource-body small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.resource-body strong { font-size: 14px; font-weight: 700; }.resource-body small { margin-top: 3px; color: var(--rh-text-tertiary); font-size: 12px; }.row-arrow { color: var(--rh-text-tertiary); }.empty-row { display: flex; align-items: center; gap: 9px; min-height: 84px; color: var(--rh-text-tertiary); font-size: 13px; }.empty-row a { margin-left: auto; font-weight: 700; }
 .content-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, .85fr); gap: 20px; margin-top: 52px; }
+.proactive-section { margin-top: 52px; }.proactive-list { border-top: 1px solid var(--rh-border); }.proactive-row { display: flex; align-items: center; gap: 13px; min-height: 74px; padding: 12px 0; border-bottom: 1px solid var(--rh-border-faint); color: var(--rh-text-primary); transition: var(--rh-transition-all-normal); }.proactive-row:hover { background: var(--rh-bg-hover); }.proactive-mark { display: grid; place-items: center; width: 35px; height: 35px; flex: 0 0 auto; border-radius: 50%; background: var(--rh-bg-active); color: var(--rh-ai-strong); }.proactive-row .resource-body small { display: -webkit-box; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .viz-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 52px; }.panel, .overview-panel { border: 1px solid var(--rh-border); background: var(--rh-bg-card); }.panel { padding: 22px 24px; }.prompt-panel .section-heading { margin-bottom: 8px; }.prompt-list { border-top: 1px solid var(--rh-border); }.prompt-row { min-height: 64px; }.prompt-number { width: 25px; color: var(--rh-text-tertiary); font-family: var(--rh-font-sans); font-size: 12px; font-variant-numeric: tabular-nums; }.ai-label { color: var(--rh-ai-strong); }.overview-panel { position: relative; overflow: hidden; padding: 24px; background: var(--rh-text-primary); color: var(--rh-bg-card); }.overview-panel::after { position: absolute; top: -30px; right: -20px; width: 140px; height: 140px; border: 1px solid rgba(183,216,75,.4); border-radius: 50%; content: ''; }.overview-panel .eyebrow { color: var(--rh-ai); }.metric-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 32px 0 28px; }.metric-list div { padding-right: 10px; border-right: 1px solid var(--rh-on-inverse-line); }.metric-list div:last-child { border-right: 0; }.metric-list strong, .metric-list span { display: block; }.metric-list strong { font-family: var(--rh-font-display); font-size: 27px; font-weight: 500; }.metric-list span { margin-top: 4px; color: var(--rh-on-inverse-muted); font-size: 11px; }.ai-callout { display: flex; gap: 12px; padding-top: 18px; border-top: 1px solid var(--rh-on-inverse-line); }.ai-symbol { color: var(--rh-ai); font-size: 19px; }.ai-callout strong { font-size: 13px; }.ai-callout p { margin-top: 5px; color: var(--rh-on-inverse-muted); font-size: 12px; line-height: 1.6; }
 @media (max-width: 800px) { .welcome-row { display: block; }.welcome-actions { margin-top: 22px; }.content-grid { grid-template-columns: 1fr; }.viz-grid { grid-template-columns: 1fr; }.continue-section { margin-top: 40px; } }
 @media (max-width: 480px) { .welcome-row h1 { font-size: 32px; }.welcome-actions .el-button { flex: 1; }.search-hint { display: none; }.panel { padding: 18px; } }

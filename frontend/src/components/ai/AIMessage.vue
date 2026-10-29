@@ -260,10 +260,7 @@ function prettyJson(raw: string): string {
 }
 
 .ai-markdown {
-  padding: 14px 16px;
-  border: 1px solid var(--rh-border-faint);
-  border-radius: var(--rh-radius-md);
-  background: var(--rh-bg-card);
+  padding: 2px 4px;
   font-size: var(--rh-fs-body);
   line-height: var(--rh-lh-relaxed);
   word-break: break-word;
@@ -344,7 +341,6 @@ function prettyJson(raw: string): string {
 
 .agent-steps {
   margin-top: 10px;
-  border: 1px solid var(--rh-border-faint);
   border-radius: var(--rh-radius-sm);
   background: var(--rh-bg-secondary);
 }
@@ -425,7 +421,6 @@ function prettyJson(raw: string): string {
 .confirm-card {
   margin-top: 10px;
   padding: 12px 14px;
-  border: 1px solid var(--rh-ai-strong);
   border-radius: var(--rh-radius-sm);
   background: var(--rh-bg-elevated);
 }

@@ -89,6 +89,9 @@ export const useAuthStore = defineStore('auth', () => {
     void import('./aiWorkspace').then(({ useAIWorkspaceStore }) => {
       useAIWorkspaceStore().reset()
     })
+    void import('./agentIdentity').then(({ useAgentIdentityStore }) => {
+      useAgentIdentityStore().reset()
+    })
   }
 
   return {

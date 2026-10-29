@@ -22,6 +22,8 @@ from app.models.ai import AIRun
 from app.models.user import User
 from app.schemas.ai import AgentResumeRequest, AgentRunRequest
 from app.services.ai.provider import AIProviderError, get_chat_provider
+from app.services.ai.memory_service import MemoryService, build_memory_context
+from app.services.ai.persona_service import PersonaService, build_persona_prompt
 from app.services.ai.sse import sse_event
 from app.services.ai.tools import TOOL_REGISTRY, ToolContext
 from app.services.ai.usage import ensure_quota, record_usage
@@ -38,6 +40,10 @@ AGENT_SYSTEM = """你是 ResourceHub 的个人知识 Agent，可以调用工具�
 
 class AgentService:
     """Agent 运行与恢复"""
+
+    def __init__(self) -> None:
+        self.persona_service = PersonaService()
+        self.memory_service = MemoryService()
 
     async def stream(
         self, db: AsyncSession, user: User, request: AgentRunRequest
@@ -68,8 +74,16 @@ class AgentService:
         await db.flush()
         yield sse_event("meta", {"run_id": run.id, "model": model, "max_steps": max_steps})
 
+        persona = await self.persona_service.get_active(db, user.id)
+        persona_prompt = build_persona_prompt(persona)
+        memories = await self.memory_service.retrieve(db, user.id, request.goal)
+        memory_context = build_memory_context(memories)
+        system_content = "\n\n".join(
+            part for part in (persona_prompt, AGENT_SYSTEM, memory_context) if part
+        )
+
         messages: list[dict] = [
-            {"role": "system", "content": AGENT_SYSTEM},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": request.goal},
         ]
         steps: list[dict] = []

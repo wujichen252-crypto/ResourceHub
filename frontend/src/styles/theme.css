@@ -40,7 +40,7 @@
   --rh-z-nav: 100; --rh-z-topbar: 110; --rh-z-menu: 109; --rh-z-popover: 200;
   /* 页面外壳：列表型页面用 --rh-page-max，详情/设置型页面用 --rh-page-narrow */
   --rh-page-max: 1320px; --rh-page-narrow: 1000px; --rh-page-pad: 32px 32px 56px;
-  --rh-nav-width: 224px; --rh-topbar-height: 68px;
+  --rh-nav-width: 224px;
   --el-color-primary: #b03c22; --el-color-primary-light-3: #c4604a; --el-color-primary-light-5: #d28371; --el-color-primary-light-7: #e0a697; --el-color-primary-light-8: #eac0b5; --el-color-primary-light-9: #f5e0da; --el-color-primary-dark-2: #96301a;
   --el-color-success: #3f8f6b; --el-color-warning: #9a6a1c; --el-color-danger: #b93b3b; --el-color-info: #6a7268;
   --el-bg-color: #fbfaf6; --el-bg-color-overlay: #fffef9; --el-bg-color-page: #f5f3ee; --el-text-color-primary: #20231f; --el-text-color-regular: #5c625b; --el-text-color-secondary: #676c65; --el-text-color-placeholder: #6f746c; --el-border-color: #d9d8cf; --el-border-color-light: #e9e7df; --el-border-color-lighter: #f0eee8; --el-fill-color: #ebe9e1; --el-fill-color-light: #f1efe9; --el-fill-color-lighter: #f7f5f0; --el-fill-color-blank: #fbfaf6;
@@ -76,7 +76,13 @@ html[data-theme="dark"] {
 :root .el-tag--primary { --el-tag-bg-color: var(--rh-primary-subtle); --el-tag-text-color: var(--rh-primary); border-color: transparent; }
 :root .el-input__wrapper, :root .el-select .el-input__wrapper { border-radius: var(--rh-radius-sm); box-shadow: 0 0 0 1px var(--rh-border) inset; background: var(--rh-bg-card); transition: var(--rh-transition-all-normal); }
 :root .el-input__wrapper:hover { box-shadow: 0 0 0 1px var(--rh-border-strong) inset; }
-:root .el-input__wrapper.is-focus { box-shadow: 0 0 0 1px var(--rh-primary) inset, var(--rh-focus-ring); }
+:root .el-input__wrapper.is-focus { box-shadow: 0 0 0 1px var(--rh-border-strong) inset, 0 0 0 3px var(--rh-primary-muted); }
+/* el-input / el-select / el-input-number 外层自带 border，与内部 .el-input__wrapper 的 box-shadow 叠加会出现双层边框，需统一去掉外层 */
+:root .el-input, :root .el-select, :root .el-input-number { border: none; }
+/* el-textarea 的 border 在本体内而非 wrapper，单独覆盖 */
+:root .el-textarea__inner { border: 1px solid var(--rh-border); border-radius: var(--rh-radius-sm); background: var(--rh-bg-card); transition: var(--rh-transition-all-normal); }
+:root .el-textarea__inner:hover { border-color: var(--rh-border-strong); }
+:root .el-textarea__inner.is-focus { border-color: var(--rh-border-strong); box-shadow: 0 0 0 3px var(--rh-primary-muted); }
 :root .el-dialog { border: 1px solid var(--rh-border); border-radius: var(--rh-radius-md); box-shadow: var(--rh-shadow-lg); }
 /* 统一焦点可见性：键盘可用，鼠标点击不出现轮廓 */
 :focus-visible { outline: 2px solid var(--rh-primary); outline-offset: 2px; }

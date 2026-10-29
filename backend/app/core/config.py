@@ -46,6 +46,17 @@ class Settings(BaseSettings):
     AI_RETRIEVAL_CANDIDATES: int = 4000  # 单次检索参与打分的 chunk 上限
     AI_MIN_VECTOR_SCORE: float = 0.5  # 低于该余弦相似度且无关键词命中时视为无依据，触发拒答
 
+    # ── 智能体身份层：记忆、人格与主动性 ──
+    AI_MEMORY_EXTRACT_ENABLED: bool = True
+    AI_MEMORY_MAX_PER_USER: int = 200
+    AI_MEMORY_TOP_K: int = 5
+    AI_MEMORY_MIN_MESSAGES: int = 4  # 会话满多少条消息后才抽取记忆
+    AI_MEMORY_DEDUP_SCORE: float = 0.9  # 向量去重阈值
+    AI_PROACTIVE_ENABLED: bool = True
+    AI_PROACTIVE_HOUR: int = 8
+    AI_PROACTIVE_TIMEZONE: str = "Asia/Shanghai"
+    AI_STALE_GOAL_DAYS: int = 30
+
     model_config = SettingsConfigDict(
         # 无论从项目根目录还是 backend 目录启动，都读取项目根目录配置。
         env_file=Path(__file__).resolve().parents[3] / ".env",

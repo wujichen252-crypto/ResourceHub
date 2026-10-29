@@ -24,11 +24,15 @@ from app.services.ai.agent import AgentService
 from app.services.ai.chat_service import ChatService
 from app.services.ai.eval_service import EVAL_SERVICE
 from app.services.ai.index_service import IndexService
+from app.services.ai.persona_service import PersonaService
+from app.services.ai.proactive_service import ProactiveService
 
 router = APIRouter(tags=["AI 能力"])
 chat_service = ChatService()
 agent_service = AgentService()
 index_service = IndexService()
+persona_service = PersonaService()
+proactive_service = ProactiveService()
 
 SSE_HEADERS = {
     "Cache-Control": "no-cache",
@@ -64,6 +68,8 @@ async def ai_status(
             NoteChunk.user_id == current_user.id
         ),
     )
+    persona = await persona_service.get_active(db, current_user.id)
+    unread = await proactive_service.unread_count(db, current_user.id)
     return success_response(
         data={
             "configured": settings.ai_configured,
@@ -73,6 +79,13 @@ async def ai_status(
             "note_count": note_count,
             "chunk_count": chunk_count,
             "indexed_note_count": indexed_note_count,
+            "active_profile": {
+                "name": persona.name,
+                "persona": persona.persona,
+                "tone": persona.tone,
+                "greeting": persona.greeting,
+            },
+            "unread_proactive_count": unread,
         },
         msg="获取 AI 状态成功",
     )

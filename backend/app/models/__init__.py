@@ -8,6 +8,7 @@ from .ai import (
     PromptEvalResult,
     PromptEvalSuite,
 )
+from .agent import AgentMemory, AgentProactiveMessage, AgentProfile
 from .user import User
 from .category import Category
 from .note import Note
@@ -32,4 +33,7 @@ __all__ = [
     "PromptEvalSuite",
     "PromptEvalCase",
     "PromptEvalResult",
+    "AgentProfile",
+    "AgentMemory",
+    "AgentProactiveMessage",
 ]

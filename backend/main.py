@@ -15,7 +15,8 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.response import error_response, APIError
 from app.core.errors import ErrorCode
-from app.routers import auth, notes, prompts, categories, stats, plaza, ai
+from app.routers import auth, notes, prompts, categories, stats, plaza, ai, agent
+from app.services.ai.proactive_scheduler import scheduler_loop
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,19 @@ async def lifespan(app: FastAPI):
             logger.warning("数据库初始化超时，服务继续启动；请检查 DATABASE_URL 和 MySQL 网络连通性")
         except Exception:
             logger.exception("数据库初始化失败，服务继续启动；登录和数据接口需要数据库可用")
+
+    scheduler_task: asyncio.Task | None = None
+    if settings.AI_PROACTIVE_ENABLED and settings.ai_configured and settings.ENV != "test":
+        scheduler_task = asyncio.create_task(scheduler_loop())
+
     yield
+
+    if scheduler_task is not None:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -68,6 +81,7 @@ app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
 app.include_router(stats.router, prefix="/api/stats", tags=["统计"])
 app.include_router(plaza.router, prefix="/api/plaza", tags=["资源广场"])
 app.include_router(ai.router, prefix="/api/ai", tags=["AI 能力"])
+app.include_router(agent.router, prefix="/api/ai", tags=["AI 智能体"])
 
 
 @app.get("/health")

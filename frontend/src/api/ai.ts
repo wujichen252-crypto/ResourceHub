@@ -9,6 +9,86 @@ export interface AIStatus {
   note_count: number
   chunk_count: number
   indexed_note_count: number
+  active_profile: AgentProfileSummary
+  unread_proactive_count: number
+}
+
+/** 状态接口里的人格摘要 */
+export interface AgentProfileSummary {
+  name: string
+  persona: string
+  tone: string
+  greeting: string | null
+}
+
+/** 智能体人格 */
+export interface AgentProfile {
+  id: number
+  name: string
+  persona: string
+  tone: string
+  expertise: string | null
+  boundaries: string | null
+  greeting: string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentProfilePayload {
+  name: string
+  persona: string
+  tone: string
+  expertise?: string | null
+  boundaries?: string | null
+  greeting?: string | null
+  is_default?: boolean
+}
+
+export type AgentMemoryType = 'fact' | 'preference' | 'goal' | 'event'
+
+/** 长期记忆 */
+export interface AgentMemory {
+  id: number
+  profile_id: number | null
+  memory_type: AgentMemoryType | string
+  content: string
+  importance: number
+  source: string
+  use_count: number
+  last_used_at: string | null
+  expires_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentMemoryPayload {
+  content: string
+  memory_type?: AgentMemoryType
+  importance?: number
+  expires_at?: string | null
+}
+
+/** 主动消息 */
+export interface AgentProactiveMessage {
+  id: number
+  kind: string
+  title: string
+  content: string
+  status: 'unread' | 'read' | 'dismissed' | string
+  source_ref: string | null
+  created_at: string
+}
+
+export interface MemoryExtractResult {
+  extracted: number
+  skipped_duplicates: number
+  total: number
+}
+
+export interface ProactiveScanResult {
+  created: number
+  skipped: number
 }
 
 /** 索引重建结果 */
@@ -133,5 +213,84 @@ export const aiApi = {
   /** 指定会话的历史消息 */
   messages(conversationId: number): Promise<{ items: ConversationMessage[] }> {
     return http.get(`/ai/conversations/${conversationId}/messages`)
+  },
+
+  /** 人格列表 */
+  profiles(): Promise<{ items: AgentProfile[] }> {
+    return http.get('/ai/profiles')
+  },
+
+  /** 创建人格 */
+  createProfile(payload: AgentProfilePayload): Promise<AgentProfile> {
+    return http.post('/ai/profiles', payload)
+  },
+
+  /** 更新人格 */
+  updateProfile(id: number, payload: Partial<AgentProfilePayload>): Promise<AgentProfile> {
+    return http.put(`/ai/profiles/${id}`, payload)
+  },
+
+  /** 激活人格 */
+  activateProfile(id: number): Promise<AgentProfile> {
+    return http.put(`/ai/profiles/${id}/activate`)
+  },
+
+  /** 删除人格 */
+  deleteProfile(id: number): Promise<null> {
+    return http.delete(`/ai/profiles/${id}`)
+  },
+
+  /** 记忆列表 */
+  memories(params?: {
+    memory_type?: string
+    keyword?: string
+  }): Promise<{ items: AgentMemory[]; total: number }> {
+    return http.get('/ai/memories', { params })
+  },
+
+  /** 手动新增记忆 */
+  createMemory(payload: AgentMemoryPayload): Promise<AgentMemory> {
+    return http.post('/ai/memories', payload)
+  },
+
+  /** 更新记忆 */
+  updateMemory(id: number, payload: Partial<AgentMemoryPayload>): Promise<AgentMemory> {
+    return http.put(`/ai/memories/${id}`, payload)
+  },
+
+  /** 删除记忆 */
+  deleteMemory(id: number): Promise<null> {
+    return http.delete(`/ai/memories/${id}`)
+  },
+
+  /** 清空记忆 */
+  clearMemories(): Promise<{ deleted: number }> {
+    return http.delete('/ai/memories')
+  },
+
+  /** 手动触发记忆抽取 */
+  extractMemories(conversationId: number): Promise<MemoryExtractResult> {
+    return http.post('/ai/memories/extract', { conversation_id: conversationId })
+  },
+
+  /** 主动消息列表 */
+  proactiveMessages(params?: {
+    status?: string
+    limit?: number
+  }): Promise<{ items: AgentProactiveMessage[] }> {
+    return http.get('/ai/proactive/messages', { params })
+  },
+
+  /** 标记主动消息已读或忽略 */
+  markProactiveRead(
+    id: number,
+    status: 'read' | 'dismissed' = 'read',
+  ): Promise<AgentProactiveMessage> {
+    return http.put(`/ai/proactive/messages/${id}/read`, null, { params: { status } })
+  },
+
+  /** 手动触发主动扫描 */
+  scanProactive(): Promise<ProactiveScanResult> {
+    return http.post('/ai/proactive/scan')
   },
 }

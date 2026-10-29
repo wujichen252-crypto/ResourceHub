@@ -51,6 +51,10 @@ class ErrorCode(IntEnum):
     AI_CONTENT_BLOCKED = 7004
     AI_RUN_NOT_FOUND = 7005
     AI_CONFIRM_REQUIRED = 7006
+    AGENT_PROFILE_NOT_FOUND = 7007
+    MEMORY_NOT_FOUND = 7008
+    MEMORY_LIMIT_EXCEEDED = 7009
+    PROACTIVE_MESSAGE_NOT_FOUND = 7010
 
 
 ERROR_MESSAGES = {
@@ -83,6 +87,10 @@ ERROR_MESSAGES = {
     ErrorCode.AI_CONTENT_BLOCKED: "内容未通过安全检查",
     ErrorCode.AI_RUN_NOT_FOUND: "Agent 运行记录不存在",
     ErrorCode.AI_CONFIRM_REQUIRED: "该操作需要用户确认后执行",
+    ErrorCode.AGENT_PROFILE_NOT_FOUND: "智能体人格不存在",
+    ErrorCode.MEMORY_NOT_FOUND: "记忆不存在",
+    ErrorCode.MEMORY_LIMIT_EXCEEDED: "记忆数量已达上限，请先清理部分记忆",
+    ErrorCode.PROACTIVE_MESSAGE_NOT_FOUND: "主动消息不存在",
 }
 
 

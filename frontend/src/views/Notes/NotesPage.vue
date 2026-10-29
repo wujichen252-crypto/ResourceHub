@@ -48,7 +48,8 @@ function handleSelectNote(noteId: number) {
 <style scoped>
 .notes-page {
   display: flex;
-  height: calc(100vh - var(--rh-topbar-height));
+  /* 桌面端无顶栏，直接铺满视口，避免目录上方留出空白条 */
+  height: 100vh;
   overflow: hidden;
 }
 
@@ -74,6 +75,13 @@ function handleSelectNote(noteId: number) {
   .page-sidebar {
     width: 280px;
     min-width: 280px;
+  }
+}
+
+/* 移动端有 60px 固定顶栏，页面高度需扣除 */
+@media (max-width: 768px) {
+  .notes-page {
+    height: calc(100vh - 60px);
   }
 }
 

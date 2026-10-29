@@ -2,9 +2,9 @@
   <div class="rh-page ai-page">
     <header class="ai-head">
       <div class="ai-head__text">
-        <p class="eyebrow"><span class="eyebrow-mark" aria-hidden="true">✦</span> AI 助手</p>
-        <h1>AI 工作台</h1>
-        <p class="ai-sub">根据你的笔记回答问题，也可以交给自动助手分步完成一件事。</p>
+        <p class="eyebrow"><span class="eyebrow-mark" aria-hidden="true">✦</span> {{ identity.profileName }}</p>
+        <h1>{{ identity.activeProfile ? `${identity.activeProfile.name} · 你的知识分身` : 'AI 工作台' }}</h1>
+        <p class="ai-sub">{{ identity.personaTagline }}</p>
       </div>
       <div class="ai-head__actions">
         <span class="status-chip" :class="{ 'is-off': status !== null && !status.configured }" :title="indexLabel">
@@ -15,6 +15,16 @@
         <span v-if="rebuilding" class="index-meta" role="status">
           正在读取，可能需要几十秒，请先不要关闭页面
         </span>
+        <el-badge :value="identity.unreadCount" :hidden="!identity.unreadCount" :max="9">
+          <el-button size="small" @click="openDrawer('proactive')">
+            <el-icon><Bell /></el-icon>
+            主动消息
+          </el-button>
+        </el-badge>
+        <el-button size="small" @click="openDrawer('profile')">
+          <el-icon><Setting /></el-icon>
+          智能体设置
+        </el-button>
         <el-button size="small" :loading="rebuilding" @click="rebuildIndex">
           <el-icon v-if="!rebuilding"><Refresh /></el-icon>
           让 AI 重新读取笔记
@@ -56,7 +66,7 @@
         <div v-else-if="!messages.length" class="chat-empty">
           <EmptyState
             :icon="ChatDotRound"
-            :title="mode === 'chat' ? '向你的笔记提问' : '交给自动助手一件事'"
+            :title="mode === 'chat' ? `向${identity.profileName}提问` : '交给自动助手一件事'"
             :description="emptyDescription"
             min-height="0"
           >
@@ -103,6 +113,20 @@
         </div>
       </div>
     </div>
+
+    <el-drawer v-model="drawerOpen" title="智能体设置" direction="rtl" size="420px" class="identity-drawer">
+      <el-tabs v-model="drawerTab">
+        <el-tab-pane label="人格" name="profile">
+          <AgentProfilePanel />
+        </el-tab-pane>
+        <el-tab-pane label="记忆" name="memory">
+          <MemoryPanel />
+        </el-tab-pane>
+        <el-tab-pane label="主动" name="proactive">
+          <ProactiveInbox />
+        </el-tab-pane>
+      </el-tabs>
+    </el-drawer>
   </div>
 </template>
 
@@ -117,12 +141,16 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import type { Component } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ChatDotRound, Cpu, Refresh, WarningFilled } from '@element-plus/icons-vue'
+import { Bell, ChatDotRound, Cpu, Refresh, Setting, WarningFilled } from '@element-plus/icons-vue'
 import AIMessage from '../../components/ai/AIMessage.vue'
+import AgentProfilePanel from '../../components/ai/AgentProfilePanel.vue'
+import MemoryPanel from '../../components/ai/MemoryPanel.vue'
+import ProactiveInbox from '../../components/ai/ProactiveInbox.vue'
 import EmptyState from '../../components/common/EmptyState.vue'
 import ErrorState from '../../components/common/ErrorState.vue'
 import LoadingState from '../../components/common/LoadingState.vue'
 import { useAIWorkspaceStore } from '../../stores/aiWorkspace'
+import { useAgentIdentityStore } from '../../stores/agentIdentity'
 import type { AIMode, ChatBubble } from '../../stores/aiWorkspace'
 
 const modes: Array<{ value: AIMode; label: string; icon: Component }> = [
@@ -131,6 +159,7 @@ const modes: Array<{ value: AIMode; label: string; icon: Component }> = [
 ]
 
 const ai = useAIWorkspaceStore()
+const identity = useAgentIdentityStore()
 const {
   mode,
   messages,
@@ -148,6 +177,8 @@ const {
 const composing = ref(false)
 const scrollRef = ref<HTMLElement | null>(null)
 const autoScroll = ref(true)
+const drawerOpen = ref(false)
+const drawerTab = ref('profile')
 
 const modeHint = computed(() =>
   mode.value === 'chat'
@@ -162,11 +193,12 @@ const placeholder = computed(() => {
     : '说说你想让自动助手做什么，例如：把上周的灵感整理成一篇笔记'
 })
 
-const emptyDescription = computed(() =>
-  mode.value === 'chat'
+const emptyDescription = computed(() => {
+  if (identity.activeProfile) return identity.greeting
+  return mode.value === 'chat'
     ? '回答都会从你的笔记里找依据，并附上原文段落。'
-    : '自动助手可以查找笔记、读取内容、新建或更新笔记；改动笔记前会先请你确认。',
-)
+    : '自动助手可以查找笔记、读取内容、新建或更新笔记；改动笔记前会先请你确认。'
+})
 
 const suggestions = computed(() =>
   mode.value === 'chat'
@@ -242,6 +274,13 @@ function useSuggestion(text: string): void {
   void send()
 }
 
+/** 打开设置抽屉时刷新一次，确保刚抽取的记忆与主动消息可见 */
+function openDrawer(tab: 'profile' | 'memory' | 'proactive'): void {
+  drawerTab.value = tab
+  drawerOpen.value = true
+  void identity.loadPanels()
+}
+
 /** Enter 发送、Shift+Enter 换行；输入法组合期间的回车用于选词，不能触发发送 */
 function handleKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Enter' || event.shiftKey) return
@@ -253,6 +292,7 @@ function handleKeydown(event: KeyboardEvent): void {
 onMounted(async () => {
   // 从别的页面切回来时保留原会话，不重复拉状态造成闪烁
   if (!status.value) await ai.loadStatus()
+  if (!identity.profiles.length) await identity.loadPanels()
   await nextTick()
   scrollToBottom()
 })
@@ -262,7 +302,8 @@ onMounted(async () => {
 .ai-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--rh-topbar-height));
+  /* 桌面端无顶栏，直接铺满视口 */
+  height: 100vh;
   gap: var(--rh-space-base);
 }
 
@@ -305,6 +346,10 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--rh-space-sm);
+}
+
+.identity-drawer :deep(.el-drawer__body) {
+  padding: var(--rh-space-base);
 }
 
 .status-chip {

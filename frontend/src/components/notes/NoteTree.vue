@@ -414,6 +414,7 @@ async function handleDelete() {
   align-items: center;
   gap: 8px;
   padding: 2px 0;
+  width: 100%;
 }
 
 /* 分类与笔记用同尺寸图标、同字号，仅以图形区分类型 */

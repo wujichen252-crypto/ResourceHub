@@ -14,6 +14,7 @@
       <RouterLink v-for="item in mainLinks" :key="item.path" class="nav-link" :to="item.path" :class="{ active: activeIndex === item.path }" :aria-current="activeIndex === item.path ? 'page' : undefined">
         <el-icon><component :is="item.icon" /></el-icon><span>{{ item.label }}</span>
         <span v-if="item.path === '/prompts'" class="nav-accent">AI</span>
+        <span v-if="item.path === '/ai' && identityStore.unreadCount > 0" class="nav-badge">{{ identityStore.unreadCount > 9 ? '9+' : identityStore.unreadCount }}</span>
       </RouterLink>
     </nav>
 
@@ -47,7 +48,7 @@
     </div>
   </header>
   <div v-if="mobileOpen" class="mobile-menu">
-    <RouterLink v-for="item in mainLinks" :key="item.path" :to="item.path" @click="mobileOpen = false"><el-icon><component :is="item.icon" /></el-icon>{{ item.label }}</RouterLink>
+    <RouterLink v-for="item in mainLinks" :key="item.path" :to="item.path" @click="mobileOpen = false"><el-icon><component :is="item.icon" /></el-icon>{{ item.label }}<span v-if="item.path === '/ai' && identityStore.unreadCount > 0" class="nav-badge">{{ identityStore.unreadCount > 9 ? '9+' : identityStore.unreadCount }}</span></RouterLink>
     <RouterLink to="/prompts" @click="openFavorites(); mobileOpen = false"><el-icon><Star /></el-icon>收藏提示词</RouterLink>
     <RouterLink to="/notes" @click="mobileOpen = false"><el-icon><Collection /></el-icon>我的笔记</RouterLink>
     <RouterLink to="/settings" @click="mobileOpen = false"><el-icon><Setting /></el-icon>设置</RouterLink>
@@ -61,9 +62,10 @@ import { ArrowDown, Collection, Cpu, Document, Grid, MagicStick, Menu, Monitor, 
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { usePromptsStore } from '../stores/prompts'
+import { useAgentIdentityStore } from '../stores/agentIdentity'
 import { useTheme } from '../composables/useTheme'
 
-const router = useRouter(); const route = useRoute(); const authStore = useAuthStore(); const promptsStore = usePromptsStore()
+const router = useRouter(); const route = useRoute(); const authStore = useAuthStore(); const promptsStore = usePromptsStore(); const identityStore = useAgentIdentityStore()
 const { isDark, themeLabel, toggleTheme } = useTheme()
 const userMenuOpen = ref(false); const mobileOpen = ref(false); const footerRef = ref<HTMLElement | null>(null)
 const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/ai', label: 'AI 工作台', icon: Cpu }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }, { path: '/plaza', label: '资源广场', icon: Grid }]
@@ -77,7 +79,7 @@ function handleDocumentClick(event: MouseEvent) {
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') { userMenuOpen.value = false; mobileOpen.value = false }
 }
-onMounted(() => { document.addEventListener('click', handleDocumentClick); document.addEventListener('keydown', handleKeydown) })
+onMounted(() => { document.addEventListener('click', handleDocumentClick); document.addEventListener('keydown', handleKeydown); void identityStore.loadStatus() })
 onUnmounted(() => { document.removeEventListener('click', handleDocumentClick); document.removeEventListener('keydown', handleKeydown) })
 
 function openFavorites() {
@@ -99,6 +101,7 @@ function logout() { ElMessageBox.confirm('确定要退出登录吗？', '退出�
 .nav-links { display: grid; gap: 3px; }
 .nav-link { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 0 11px; border: 0; border-radius: var(--rh-radius-sm); background: transparent; color: var(--rh-text-secondary); text-align: left; text-decoration: none; cursor: pointer; transition: var(--rh-transition-all-normal); }
 .nav-link:hover { background: var(--rh-bg-hover); color: var(--rh-text-primary); }.nav-link.active { background: var(--rh-bg-active); color: var(--rh-primary); font-weight: 700; }.nav-link :deep(.el-icon) { font-size: 17px; }.nav-accent { margin-left: auto; color: var(--rh-ai-strong); font-size: 10px; font-weight: 800; letter-spacing: .05em; }
+.nav-badge { display: grid; place-items: center; min-width: 18px; height: 18px; margin-left: auto; padding: 0 5px; border-radius: 999px; background: var(--rh-primary); color: var(--rh-on-primary); font-size: 10px; font-weight: 800; line-height: 1; }
 .nav-footer { position: relative; display: grid; gap: 3px; margin-top: auto; }.footer-rule { height: 1px; margin: 12px 10px; background: var(--rh-border-faint); }
 .user-trigger { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 9px; border: 0; border-radius: var(--rh-radius-sm); background: transparent; color: var(--rh-text-tertiary); text-align: left; cursor: pointer; }.user-trigger:hover { background: var(--rh-bg-hover); }.user-trigger :deep(.el-avatar) { flex: 0 0 auto; background: var(--rh-bg-active); color: var(--rh-text-secondary); font-weight: 700; }.user-meta { flex: 1; min-width: 0; }.user-meta strong, .user-meta small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.user-meta strong { color: var(--rh-text-primary); font-size: 13px; }.user-meta small { color: var(--rh-text-tertiary); font-size: 11px; }
 .user-popover { position: absolute; right: 0; bottom: 52px; left: 0; padding: 5px; border: 1px solid var(--rh-border); border-radius: var(--rh-radius-md); background: var(--rh-bg-elevated); box-shadow: var(--rh-shadow-lg); }.user-popover button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 0; border-radius: var(--rh-radius-xs); background: transparent; color: var(--rh-text-secondary); text-align: left; cursor: pointer; }.user-popover button:hover { background: var(--rh-bg-hover); color: var(--rh-text-primary); }.user-popover button.danger:hover { color: var(--rh-danger); }

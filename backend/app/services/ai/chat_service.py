@@ -19,6 +19,8 @@ from app.models.ai import AIConversation, AIMessage
 from app.models.user import User
 from app.schemas.ai import ChatRequest
 from app.services.ai.chunking import estimate_tokens
+from app.services.ai.memory_service import MemoryService, build_memory_context, schedule_extraction
+from app.services.ai.persona_service import PersonaService, build_persona_prompt
 from app.services.ai.provider import AIProviderError, get_chat_provider
 from app.services.ai.retrieval import retrieve
 from app.services.ai.safety import (
@@ -36,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 class ChatService:
     """RAG 流式问答"""
+
+    def __init__(self) -> None:
+        self.persona_service = PersonaService()
+        self.memory_service = MemoryService()
 
     async def stream(
         self, db: AsyncSession, user: User, request: ChatRequest
@@ -66,6 +72,12 @@ class ChatService:
             {"conversation_id": conversation.id, "model": model, "use_rag": request.use_rag},
         )
 
+        persona = await self.persona_service.get_active(db, user.id)
+        persona_prompt = build_persona_prompt(persona)
+        # 同一 AsyncSession 不能并发执行查询，记忆与笔记检索按顺序执行
+        memories = await self.memory_service.retrieve(db, user.id, request.message)
+        memory_context = build_memory_context(memories)
+
         hits = []
         if request.use_rag:
             hits = await retrieve(db, user.id, request.message, request.top_k)
@@ -84,8 +96,8 @@ class ChatService:
                 if detect_prompt_injection(hit.content):
                     logger.warning("检索片段命中注入特征 chunk=%s", hit.chunk_id)
 
-        # 检索无依据时直接拒答，避免模型编造
-        if request.use_rag and not hits:
+        # 笔记与记忆都无依据时直接拒答，避免模型编造
+        if request.use_rag and not hits and not memories:
             answer = refusal_text()
             yield sse_event("token", {"text": answer})
             await self._persist(db, conversation, request, answer, [], {"total_tokens": 0}, 0)
@@ -95,7 +107,7 @@ class ChatService:
             )
             return
 
-        messages = self._build_messages(request, hits)
+        messages = self._build_messages(request, hits, persona_prompt, memory_context)
         answer_parts: list[str] = []
         usage: dict[str, int] = {}
 
@@ -123,6 +135,9 @@ class ChatService:
         await self._persist(db, conversation, request, answer, citations, usage, latency)
         await record_usage(db, user.id, "chat", model, usage, latency)
         await db.commit()
+
+        # 对话提交后再调度记忆抽取，失败不影响已经返回的回答
+        schedule_extraction(user.id, conversation.id)
 
         yield sse_event(
             "done",
@@ -157,12 +172,24 @@ class ChatService:
         return conversation
 
     @staticmethod
-    def _build_messages(request: ChatRequest, hits: list) -> list[dict[str, str]]:
+    def _build_messages(
+        request: ChatRequest,
+        hits: list,
+        persona_prompt: str | None = None,
+        memory_context: str | None = None,
+    ) -> list[dict[str, str]]:
         """组装系统提示、历史对话与检索上下文"""
-        parts = [SYSTEM_GUARD]
+        parts = [persona_prompt, SYSTEM_GUARD] if persona_prompt else [SYSTEM_GUARD]
+        if memory_context:
+            parts.append(memory_context)
         context = wrap_untrusted_context(hits)
         if context:
             parts.append(context)
+        elif memory_context:
+            parts.append(
+                "本轮没有检索到笔记依据，但存在用户长期记忆。可以基于记忆回答，"
+                "并说明信息来自记忆；不要编造笔记中没有的依据。"
+            )
         else:
             # 用户主动关闭“仅基于笔记回答”时，明确允许使用通用知识，且不需要标注来源
             parts.append(
