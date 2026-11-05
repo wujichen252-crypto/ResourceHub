@@ -16,6 +16,14 @@ class Note(Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ── 存储双轨（块编辑器地基）──
+    # content_format='markdown'：content 为权威（旧数据 / MD 导入）
+    # content_format='json'：content_json 为权威，content 退化为 HTML 快照（供搜索 / 预览 / 阅读兜底）
+    content_format: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="markdown", default="markdown"
+    )
+    # 注意：MySQL 5.7 TEXT 列不允许 DEFAULT，由应用层填充
+    content_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     category_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )

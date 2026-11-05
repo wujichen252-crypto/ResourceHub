@@ -1,4 +1,6 @@
 import json
+import uuid
+
 from sqlalchemy import select, func, or_, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -7,6 +9,32 @@ from app.core.errors import ErrorCode
 from app.models.note import Note
 from app.models.category import Category
 from app.schemas.note import NoteCreate, NoteUpdate
+from app.services.search_service import search_service
+
+
+def _ensure_block_ids(content_json: dict) -> dict:
+    """顶层块缺失稳定 id 时补充 uuid 短码（反链 / 引用锚点的前提），已有 id 原样保留"""
+    for block in content_json.get("content") or []:
+        if not isinstance(block, dict):
+            continue
+        attrs = block.setdefault("attrs", {})
+        if not attrs.get("id"):
+            attrs["id"] = uuid.uuid4().hex[:12]
+    return content_json
+
+
+def _apply_dual_track(note: Note, content: str | None, content_json: dict | None) -> None:
+    """存储双轨：content_json 有效时以块文档为权威并同步 HTML 快照；否则回落 markdown 单轨"""
+    if content_json:
+        note.content_format = "json"
+        note.content_json = json.dumps(
+            _ensure_block_ids(content_json), ensure_ascii=False
+        )
+        note.content = content  # 前端 getHTML() 兼容快照
+    else:
+        note.content_format = "markdown"
+        note.content_json = None
+        note.content = content
 
 
 class NoteService:
@@ -40,9 +68,14 @@ class NoteService:
         query = select(Note).where(Note.user_id == user_id)
 
         if search:
-            query = query.where(
-                or_(Note.title.ilike(f"%{search}%"), Note.content.ilike(f"%{search}%"))
-            )
+            # 优先走 Meilisearch（容错 + 中文分词）；服务不可用或索引为空（存量笔记未回填）时降级 LIKE
+            hit_ids = await search_service.search_note_ids(user_id, search)
+            if not hit_ids:
+                query = query.where(
+                    or_(Note.title.ilike(f"%{search}%"), Note.content.ilike(f"%{search}%"))
+                )
+            else:
+                query = query.where(Note.id.in_(hit_ids))
         if category_id is not None:
             query = query.where(Note.category_id == category_id)
         if tag:
@@ -77,10 +110,10 @@ class NoteService:
         note = Note(
             user_id=user_id,
             title=data.title,
-            content=data.content,
             category_id=data.category_id,
             tags=json.dumps(data.tags, ensure_ascii=False) if data.tags else None,
         )
+        _apply_dual_track(note, data.content, data.content_json)
         db.add(note)
         await db.commit()
         await db.refresh(note)
@@ -99,8 +132,8 @@ class NoteService:
         )
         note = result.scalar_one_or_none()
         if note:
-            note.content = data.content
             note.tags = json.dumps(data.tags, ensure_ascii=False) if data.tags else None
+            _apply_dual_track(note, data.content, data.content_json)
             await db.commit()
             await db.refresh(note)
             return note, True
@@ -115,6 +148,11 @@ class NoteService:
         if "tags" in update_data:
             update_data["tags"] = (
                 json.dumps(data.tags, ensure_ascii=False) if data.tags else None
+            )
+        # 双轨字段单独走 _apply_dual_track（含 JSON 序列化与块 id 校验），不走 setattr
+        if "content" in update_data or "content_json" in update_data:
+            _apply_dual_track(
+                note, update_data.pop("content", note.content), update_data.pop("content_json", None)
             )
         for key, value in update_data.items():
             setattr(note, key, value)

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any
 
@@ -9,6 +10,8 @@ from app.schemas.common import EmptyStr, JsonList, strip_html
 class NoteCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     content: str | None = None
+    # 块编辑器双轨载荷：content_json 为 TipTap JSON 文档；不传则按 markdown 单轨保存
+    content_json: dict[str, Any] | None = None
     category_id: int | None = None
     tags: list[str] | None = None
 
@@ -16,6 +19,8 @@ class NoteCreate(BaseModel):
 class NoteUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
+    # 显式传 None 表示切回 markdown 单轨并清空块文档；不传表示保持不变
+    content_json: dict[str, Any] | None = None
     category_id: int | None = None
     tags: list[str] | None = None
 
@@ -56,6 +61,8 @@ class NoteDetailResponse(BaseModel):
     id: int
     title: str
     content: EmptyStr
+    content_format: str = "markdown"
+    content_json: dict[str, Any] | None = None
     category_id: int | None
     category_name: str | None = None
     tags: JsonList
@@ -66,3 +73,15 @@ class NoteDetailResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _decode_content_json(cls, data: Any) -> Any:
+        """ORM 中 content_json 为 JSON 字符串，响应前反序列化为对象"""
+        if isinstance(data, dict) and isinstance(data.get("content_json"), str):
+            data = dict(data)
+            try:
+                data["content_json"] = json.loads(data["content_json"])
+            except (ValueError, TypeError):
+                data["content_json"] = None
+        return data

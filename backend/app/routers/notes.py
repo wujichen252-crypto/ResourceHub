@@ -8,6 +8,7 @@ from app.schemas.note import NoteCreate, NoteDetailResponse, NoteListResponse, N
 from app.services.ai.index_service import index_note_in_background
 from app.services.category_service import CategoryService
 from app.services.note_service import NoteService
+from app.services.search_service import remove_note_from_search, sync_note_to_search
 
 router = APIRouter(tags=["笔记"])
 service = NoteService()
@@ -87,6 +88,8 @@ async def create_note(
     note = await service.create_note(db, current_user.id, data)
     # 增量索引放到响应之后执行：向量化耗时不应阻塞保存
     background.add_task(index_note_in_background, current_user.id, note.id)
+    # 搜索索引与 RAG 索引同点位，走轻量整篇重建
+    background.add_task(sync_note_to_search, current_user.id, note.id)
     return success_response(
         data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="创建笔记成功",
@@ -103,6 +106,7 @@ async def import_or_replace_note(
 ):
     note, replaced = await service.import_or_replace_note(db, current_user.id, data)
     background.add_task(index_note_in_background, current_user.id, note.id)
+    background.add_task(sync_note_to_search, current_user.id, note.id)
     return success_response(
         data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="已替换同目录同名笔记" if replaced else "导入笔记成功",
@@ -120,6 +124,7 @@ async def update_note(
     note = await service.update_note(db, note_id, current_user.id, data)
     # 自动保存会高频触发，索引任务内部做整篇重建，天然幂等
     background.add_task(index_note_in_background, current_user.id, note.id)
+    background.add_task(sync_note_to_search, current_user.id, note.id)
     return success_response(
         data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
         msg="更新笔记成功",
@@ -129,10 +134,13 @@ async def update_note(
 @router.delete("/{note_id}")
 async def delete_note(
     note_id: int,
+    background: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     await service.delete_note(db, note_id, current_user.id)
+    # 索引侧同步清理，避免已删笔记仍出现在搜索结果
+    background.add_task(remove_note_from_search, note_id)
     return success_response(msg="删除笔记成功")
 
 

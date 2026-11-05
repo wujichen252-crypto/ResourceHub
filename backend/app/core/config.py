@@ -57,6 +57,13 @@ class Settings(BaseSettings):
     AI_PROACTIVE_TIMEZONE: str = "Asia/Shanghai"
     AI_STALE_GOAL_DAYS: int = 30
 
+    # ── 全文搜索（Meilisearch 内网服务；关闭时自动降级为 MySQL LIKE）──
+    MEILI_ENABLED: bool = False
+    MEILI_URL: str = "http://127.0.0.1:7700"
+    MEILI_MASTER_KEY: str = ""
+    MEILI_INDEX: str = "notes"
+    MEILI_TIMEOUT: float = 3.0
+
     model_config = SettingsConfigDict(
         # 无论从项目根目录还是 backend 目录启动，都读取项目根目录配置。
         env_file=Path(__file__).resolve().parents[3] / ".env",
@@ -114,6 +121,11 @@ class Settings(BaseSettings):
     def embedding_api_key(self) -> str:
         """向量模型密钥，未单独配置时复用对话模型密钥"""
         return self.AI_EMBEDDING_API_KEY or self.AI_API_KEY
+
+    @property
+    def meili_configured(self) -> bool:
+        """是否启用并已配置搜索服务地址"""
+        return bool(self.MEILI_ENABLED and self.MEILI_URL)
 
 
 settings = Settings()

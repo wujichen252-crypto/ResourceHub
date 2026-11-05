@@ -14,6 +14,8 @@ sys.path.insert(0, str(BACKEND_DIR))
 # 必须在导入应用前设置：占位连接串 + 关闭 SQL echo（真实连接由下方 get_db 覆盖提供）
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./_pytest_placeholder.db"
 os.environ["DEBUG"] = "false"
+# 测试不依赖外部搜索服务；搜索用例自行 monkeypatch 开关
+os.environ["MEILI_ENABLED"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient

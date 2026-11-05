@@ -58,7 +58,17 @@ sudo docker compose --env-file .env.production up -d --build
 sudo docker compose ps
 ```
 
-验证点：两个容器均为 `Up`，backend 状态约 30 秒后变为 `Up (healthy)`。
+验证点：三个容器（`backend` / `frontend` / `search`）均为 `Up`，backend 状态约 30 秒后变为 `Up (healthy)`。
+
+> `search` 为 Meilisearch 全文检索服务，仅内网可达（不映射宿主端口），数据落在 `meili-data` 卷。
+> `.env.production` 必须包含 `MEILI_MASTER_KEY`（≥16 字符），缺失会导致 search 容器启动失败；后端读取同名变量自动对接。
+> 搜索适配层在服务不可用或索引未命中时会自动降级为数据库 LIKE 查询，搜索功能不会中断。
+>
+> 存量笔记首次上线需回填索引（可重复执行）：
+> ```bash
+> sudo docker compose exec backend python scripts/reindex_notes.py --dry-run   # 先看条数
+> sudo docker compose exec backend python scripts/reindex_notes.py             # 正式回填
+> ```
 
 ```bash
 # 健康检查（compose 内置 healthcheck 已改用 python urllib，slim 镜像无 curl）

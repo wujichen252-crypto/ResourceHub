@@ -65,11 +65,34 @@ def has_citation(answer: str) -> bool:
     return bool(re.search(r"\[\d+\]", answer or ""))
 
 
-def refusal_text() -> str:
-    """无检索依据时的兜底回复"""
-    return (
-        "你的笔记里没有找到能回答这个问题的内容。可以试试：\n"
-        "1. 补充相关笔记；\n"
-        "2. 点右上角「让 AI 重新读取笔记」，让它把已有笔记读完；\n"
-        "3. 关闭「仅基于笔记回答」，改用通用知识作答。"
-    )
+# 问候 / 闲聊 / 极短致谢的正则。
+# 特征：短句（≤ 12 字或 ≤ 6 个中文字），且命中常见招呼词。
+_GREETING_WORDS = re.compile(
+    r"^(你好|您好|hi|hello|hey|在吗|在么|在不在|哈喽|哈啰|早|早上好|早安|"
+    r"晚安|午好|晚上好|你好呀|你好啊|嗨|hiya)$",
+    re.I,
+)
+_THANKS_WORDS = re.compile(r"^(谢谢|感谢|多谢|thx|thanks|ty|谢谢你|好的|ok|okay|行|可以|嗯|好)$", re.I)
+_SHORT_QUESTION = re.compile(r"^(你是谁|你是\w+吗|你叫什么|自我介绍|介绍一下你自己|你能做什么|你会什么)$")
+
+
+def is_short_greeting(query: str) -> bool:
+    """判断一条消息是否属于问候 / 闲聊 / 短致谢。
+
+    这类消息走 RAG 检索没有意义（笔记里不会有问候语），
+    直接交给模型用通用知识回答即可。避免零命中触发拒答。
+    """
+    text = (query or "").strip()
+    if not text or len(text) > 16:
+        return False
+    if _GREETING_WORDS.match(text):
+        return True
+    if _THANKS_WORDS.match(text):
+        return True
+    if _SHORT_QUESTION.match(text):
+        return True
+    # 自然语言打招呼变体：首字/前缀命中招呼词且整体很短
+    compact = text.replace(" ", "")
+    if len(compact) <= 6 and _GREETING_WORDS.match(compact):
+        return True
+    return False

@@ -30,12 +30,8 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=50), nullable=False, server_default="知识助手"),
-        sa.Column(
-            "persona",
-            sa.Text(),
-            nullable=False,
-            server_default="你的个人知识搭档，帮你梳理笔记与推进目标",
-        ),
+        # MySQL 5.7 不允许 TEXT 列设置默认值；persona 由 ORM 的 Python 默认值提供
+        sa.Column("persona", sa.Text(), nullable=False),
         sa.Column("tone", sa.String(length=20), nullable=False, server_default="严谨"),
         sa.Column("expertise", sa.String(length=200), nullable=True),
         sa.Column("boundaries", sa.Text(), nullable=True),

@@ -16,10 +16,18 @@ services:
       - DEBUG=false
       - ACCESS_TOKEN_EXPIRE_MINUTES=120
       - REFRESH_TOKEN_EXPIRE_DAYS=7
+      # 搜索服务仅内网可达，地址由 compose 网络解析
+      - MEILI_ENABLED=true
+      - MEILI_URL=http://search:7700
     volumes:
       - backend-data:/app/data
     networks:
       - resourcehub-network
+    depends_on:
+      # 用 service_started 而非 healthy：镜像内未必带 curl/wget，
+      # 且适配层已实现服务不可用时的 LIKE 降级，启动竞态不会影响业务
+      search:
+        condition: service_started
     healthcheck:
       # python:3.10-slim 镜像不含 curl，改用内置 urllib 探测，避免容器恒为 unhealthy
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=4).status==200 else 1)"]
@@ -42,8 +50,25 @@ services:
     networks:
       - resourcehub-network
 
+  # 全文搜索：仅内网可达（不映射宿主端口），前端只能经后端 API 访问
+  search:
+    image: getmeili/meilisearch:v1.11
+    container_name: resourcehub-search
+    restart: unless-stopped
+    # MEILI_MASTER_KEY 与后端共用同一份密钥文件，避免两处配置漂移
+    env_file:
+      - .env.production
+    environment:
+      - MEILI_NO_ANALYTICS=true
+      - MEILI_ENV=production
+    volumes:
+      - meili-data:/meili_data
+    networks:
+      - resourcehub-network
+
 volumes:
   backend-data:
+  meili-data:
 
 networks:
   resourcehub-network:
