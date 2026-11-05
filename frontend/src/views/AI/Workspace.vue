@@ -86,6 +86,7 @@
             :streaming="item.streaming"
             :pending="item.pending"
             :error="item.error"
+            :trust="item.trust"
             @confirm="resolvePending(item, true)"
             @reject="resolvePending(item, false)"
           />

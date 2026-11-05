@@ -10,6 +10,10 @@
   --rh-on-primary: #fffef9;
   --rh-ai: #b7d84b; --rh-ai-strong: #5f7410; --rh-success: #3f8f6b; --rh-success-strong: #2f7355; --rh-warning: #9a6a1c; --rh-danger: #b93b3b; --rh-info: #6a7268; --rh-favorite: #a16207;
   --rh-success-subtle: #e7f2ec; --rh-warning-subtle: #f5eee0; --rh-danger-subtle: #fbeaea;
+  /* 回答可信度三级色 + 引用支撑句高亮背景（浅色） */
+  --rh-trust-high: #3f8f6b; --rh-trust-mid: #9a6a1c; --rh-trust-low: #b93b3b;
+  --rh-trust-high-subtle: #e7f2ec; --rh-trust-mid-subtle: #f5eee0; --rh-trust-low-subtle: #fbeaea;
+  --rh-ai-subtle: rgba(183, 216, 75, 0.18);
   /* 代码块：浅色用下沉面，深色用更深面，保证两种主题下都与页面底色有明确区分 */
   --rh-code-bg: #e8e5dc; --rh-code-text: #2a2e29;
   --rh-bg-base: #f5f3ee; --rh-bg-card: #fbfaf6; --rh-bg-elevated: #fffef9; --rh-bg-overlay: rgba(28, 31, 28, 0.46); --rh-bg-inset: #ebe9e1; --rh-bg-subtle: #ebe9e1; --rh-bg-secondary: #f1efe9; --rh-bg-hover: #eeece5; --rh-bg-active: #e5e3d9;
@@ -54,6 +58,10 @@ html[data-theme="dark"] {
   --rh-on-primary: #1a1d1a;
   --rh-ai: #c8e85a; --rh-ai-strong: #d9f27f; --rh-success: #71bd94; --rh-success-strong: #8fd0ab; --rh-warning: #e0aa55; --rh-danger: #f17d7d; --rh-info: #9da39b; --rh-favorite: #e0c44f;
   --rh-success-subtle: rgba(113, 189, 148, 0.14); --rh-warning-subtle: rgba(224, 170, 85, 0.14); --rh-danger-subtle: rgba(241, 125, 125, 0.14);
+  /* 回答可信度三级色 + 引用支撑句高亮背景（深色） */
+  --rh-trust-high: #71bd94; --rh-trust-mid: #e0aa55; --rh-trust-low: #f17d7d;
+  --rh-trust-high-subtle: rgba(113, 189, 148, 0.14); --rh-trust-mid-subtle: rgba(224, 170, 85, 0.14); --rh-trust-low-subtle: rgba(241, 125, 125, 0.14);
+  --rh-ai-subtle: rgba(200, 232, 90, 0.14);
   --rh-code-bg: #0f110f; --rh-code-text: #e6e4db;
   --rh-bg-base: #181a18; --rh-bg-card: #202420; --rh-bg-elevated: #292e29; --rh-bg-overlay: rgba(0, 0, 0, 0.65); --rh-bg-inset: #141614; --rh-bg-subtle: #141614; --rh-bg-secondary: #202420; --rh-bg-hover: #2a2e29; --rh-bg-active: #313730;
   --rh-text-primary: #f2f0e8; --rh-text-secondary: #b7bbb1; --rh-text-tertiary: #858b82; --rh-text-placeholder: #9aa095; --rh-text-inverse: #181a18;

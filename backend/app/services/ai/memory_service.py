@@ -192,7 +192,7 @@ class MemoryService:
             max_tokens=800,
         )
         await record_usage(
-            db, user_id, "memory", settings.AI_FAST_MODEL, result.usage, result.latency_ms
+            user_id, "memory", settings.AI_FAST_MODEL, result.usage, result.latency_ms
         )
 
         candidates = _parse_candidates(result.content)

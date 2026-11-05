@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     AI_RETRIEVAL_CANDIDATES: int = 4000  # 单次检索参与打分的 chunk 上限
     AI_MIN_VECTOR_SCORE: float = 0.5  # 低于该余弦相似度且无关键词命中时视为无依据，触发拒答
 
+    # ── ROI 看板：模型单价（元/千 token），JSON 字符串，形如 {"deepseek-chat": {"input": 0.001, "output": 0.002}} ──
+    # 未配置的模型不参与金额折算（看板显示「未计价」），token 流水保持中立
+    AI_MODEL_PRICES: str = "{}"
+
     # ── 智能体身份层：记忆、人格与主动性 ──
     AI_MEMORY_EXTRACT_ENABLED: bool = True
     AI_MEMORY_MAX_PER_USER: int = 200
@@ -114,6 +118,26 @@ class Settings(BaseSettings):
     def embedding_api_key(self) -> str:
         """向量模型密钥，未单独配置时复用对话模型密钥"""
         return self.AI_EMBEDDING_API_KEY or self.AI_API_KEY
+
+    @property
+    def ai_model_prices(self) -> dict[str, dict[str, float]]:
+        """模型单价表（元/千 token），格式非法时回退为空表，不影响主流程"""
+        import json
+
+        try:
+            raw = json.loads(self.AI_MODEL_PRICES)
+        except (ValueError, TypeError):
+            return {}
+        if not isinstance(raw, dict):
+            return {}
+        prices: dict[str, dict[str, float]] = {}
+        for model, value in raw.items():
+            if isinstance(value, dict):
+                prices[str(model)] = {
+                    "input": float(value.get("input", 0)),
+                    "output": float(value.get("output", 0)),
+                }
+        return prices
 
 
 settings = Settings()

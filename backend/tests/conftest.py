@@ -73,3 +73,9 @@ def register_user(client: TestClient, username: str, password: str = "password12
 def auth(client):
     """默认已登录用户 alice 的认证头"""
     return register_user(client, "alice")
+
+
+@pytest.fixture()
+def db_url(client, tmp_path):
+    """与 client 同库的连接串，供测试直接造 ORM 数据"""
+    return f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}"

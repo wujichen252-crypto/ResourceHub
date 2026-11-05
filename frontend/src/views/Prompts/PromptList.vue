@@ -279,7 +279,8 @@ function handleTagChange(val: string | null) {
 }
 
 function handleFavoritesChange() {
-  promptsStore.toggleFavoritesOnly()
+  // v-model 已翻转 showFavoritesOnly，这里只需回到第一页重新拉取（此前重复翻转导致开关弹回、看似无效）
+  promptsStore.setPage(1)
   syncQuery()
 }
 

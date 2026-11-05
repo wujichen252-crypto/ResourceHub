@@ -31,6 +31,7 @@ from app.services.ai.safety import (
     wrap_untrusted_context,
 )
 from app.services.ai.sse import sse_event
+from app.services.ai.trust import compute_trust
 from app.services.ai.usage import ensure_quota, record_usage
 
 logger = logging.getLogger(__name__)
@@ -99,8 +100,11 @@ class ChatService:
         # 笔记与记忆都无依据时直接拒答，避免模型编造
         if request.use_rag and not hits and not memories:
             answer = refusal_text()
+            trust = compute_trust(answer, hits, request.use_rag, bool(memories))
             yield sse_event("token", {"text": answer})
-            await self._persist(db, conversation, request, answer, [], {"total_tokens": 0}, 0)
+            yield sse_event("trust", trust)
+            await self._persist(db, conversation, request, answer, [], {"total_tokens": 0}, 0,
+                                trust=trust)
             yield sse_event(
                 "done",
                 {"conversation_id": conversation.id, "citations": 0, "usage": {"total_tokens": 0}},
@@ -122,7 +126,7 @@ class ChatService:
         except AIProviderError as exc:
             latency = int((time.perf_counter() - started) * 1000)
             await record_usage(
-                db, user.id, "chat", model, usage, latency, success=False,
+                user.id, "chat", model, usage, latency, success=False,
                 error_code=str(exc.code),
             )
             await db.commit()
@@ -132,8 +136,12 @@ class ChatService:
         latency = int((time.perf_counter() - started) * 1000)
         answer = "".join(answer_parts)
         citations = [self._citation_payload(index, hit) for index, hit in enumerate(hits, start=1)]
-        await self._persist(db, conversation, request, answer, citations, usage, latency)
-        await record_usage(db, user.id, "chat", model, usage, latency)
+        # 可信度报告：token 流结束、done 之前发出并随回答落库
+        trust = compute_trust(answer, hits, request.use_rag, bool(memories))
+        yield sse_event("trust", trust)
+        await self._persist(db, conversation, request, answer, citations, usage, latency,
+                            trust=trust)
+        await record_usage(user.id, "chat", model, usage, latency)
         await db.commit()
 
         # 对话提交后再调度记忆抽取，失败不影响已经返回的回答
@@ -210,7 +218,10 @@ class ChatService:
             "note_id": hit.note_id,
             "note_title": hit.note_title,
             "snippet": hit.content[:200],
+            # score 是 RRF 融合排序分（按名次计分，数值很小），仅用于排序展示；
+            # 语义相关度用 vector_score（cosine 0~1），前端据此显示百分比
             "score": hit.score,
+            "vector_score": hit.vector_score,
         }
 
     async def _persist(
@@ -222,6 +233,7 @@ class ChatService:
         citations: list[dict],
         usage: dict[str, int],
         latency_ms: int,
+        trust: dict | None = None,
     ) -> None:
         """落库用户消息与助手回复"""
         db.add(
@@ -238,6 +250,7 @@ class ChatService:
                 role="assistant",
                 content=answer,
                 citations=json.dumps(citations, ensure_ascii=False) if citations else None,
+                trust_json=json.dumps(trust, ensure_ascii=False) if trust else None,
                 completion_tokens=usage.get("completion_tokens", 0),
                 latency_ms=latency_ms,
                 model=request.model or settings.AI_CHAT_MODEL,

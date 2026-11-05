@@ -1,10 +1,13 @@
 <template>
   <div class="app-layout">
     <NavBar v-if="!isLoginPage" />
+    <GlobalSearch v-if="!isLoginPage" />
     <main class="app-main" :class="{ 'no-nav': isLoginPage }">
-      <BaseTransition :transition-name="transitionName">
-        <router-view :key="$route.fullPath" />
-      </BaseTransition>
+      <router-view v-slot="{ Component }">
+        <BaseTransition :transition-name="transitionName">
+          <component :is="Component" :key="$route.fullPath" />
+        </BaseTransition>
+      </router-view>
     </main>
   </div>
 </template>
@@ -13,6 +16,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from './components/NavBar.vue'
+import GlobalSearch from './components/search/GlobalSearch.vue'
 import BaseTransition from './components/ui/BaseTransition.vue'
 
 const route = useRoute()

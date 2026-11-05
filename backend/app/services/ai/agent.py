@@ -153,7 +153,7 @@ class AgentService:
         run.completion_tokens = usage["completion_tokens"]
         run.finished_at = datetime.now()
         await db.flush()
-        await record_usage(db, user.id, "agent", model, usage, latency)
+        await record_usage(user.id, "agent", model, usage, latency)
         await db.commit()
         yield sse_event("done", {"run_id": run.id, "steps": len(steps), "usage": usage})
 
@@ -235,7 +235,7 @@ class AgentService:
         run.finished_at = datetime.now()
         await db.flush()
         await record_usage(
-            db, run.user_id, "agent", None, {}, int((time.perf_counter() - started) * 1000),
+            run.user_id, "agent", None, {}, int((time.perf_counter() - started) * 1000),
             success=False, error_code=str(ErrorCode.AI_PROVIDER_ERROR),
         )
         await db.commit()

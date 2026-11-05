@@ -100,7 +100,7 @@ export interface IndexRebuildResult {
   message: string
 }
 
-/** 检索引用片段 */
+/** 检索引用片段（score 为 RRF 融合排序分，数值小不代表不相关；vector_score 才是语义相似度） */
 export interface Citation {
   index: number
   chunk_id: number
@@ -108,6 +108,23 @@ export interface Citation {
   note_title: string
   snippet: string
   score: number
+  vector_score: number
+}
+
+/** 回答可信度等级 */
+export type TrustLevel = 'high' | 'mid' | 'low' | 'none' | 'neutral'
+
+/** 回答可信度报告（后端 trust 事件 / trust_json 落库解析后的结构） */
+export interface TrustReport {
+  mode: 'rag' | 'refusal' | 'memory' | 'general'
+  score: number | null
+  level: TrustLevel
+  factors: { coverage: number; quality: number; validity: number } | null
+  cited_indices: number[]
+  invalid_indices: number[]
+  sentence_count: number
+  cited_sentence_count: number
+  retrieval_degraded: boolean
 }
 
 /** Agent 单步工具调用轨迹 */
@@ -144,12 +161,13 @@ export interface ConversationSummary {
   updated_at: string
 }
 
-/** 历史会话消息（citations 为后端落库的 JSON 文本） */
+/** 历史会话消息（citations 为后端落库的 JSON 文本；trust 为解析后的可信度报告或 null） */
 export interface ConversationMessage {
   id: number
   role: 'user' | 'assistant' | 'system'
   content: string
   citations: string | null
+  trust: TrustReport | null
   created_at: string
 }
 
@@ -177,6 +195,27 @@ export interface AgentRunPayload {
 export interface AgentResumePayload {
   run_id: number
   approve: boolean
+}
+
+/** 笔记内联 AI 动作类型 */
+export type InlineActionName = 'explain' | 'rewrite' | 'ask'
+
+/** 笔记内联 AI 请求体 */
+export interface InlineAIPayload {
+  action: InlineActionName
+  text: string
+  instruction?: string
+  note_title?: string
+  context_before?: string
+  context_after?: string
+}
+
+/** 笔记内联 AI 结果 */
+export interface InlineAIResult {
+  action: InlineActionName
+  result: string
+  model: string
+  tokens: number
 }
 
 /**
@@ -292,5 +331,11 @@ export const aiApi = {
   /** 手动触发主动扫描 */
   scanProactive(): Promise<ProactiveScanResult> {
     return http.post('/ai/proactive/scan')
+  },
+
+  /** 笔记内联 AI：选中文本解释 / 改写 / 提问（非流式，后端走轻量模型） */
+  inlineAI(payload: InlineAIPayload): Promise<InlineAIResult> {
+    // 生成 100~600 字短文通常数秒完成；模型偶尔慢，放宽到 60s 避免误报超时
+    return http.post('/ai/note/inline', payload, { timeout: 60000 })
   },
 }

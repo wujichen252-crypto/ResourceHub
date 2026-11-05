@@ -7,6 +7,8 @@ from .ai import (
     PromptEvalCase,
     PromptEvalResult,
     PromptEvalSuite,
+    PromptOptimizationRound,
+    PromptOptimizationRun,
 )
 from .agent import AgentMemory, AgentProactiveMessage, AgentProfile
 from .user import User
@@ -33,6 +35,8 @@ __all__ = [
     "PromptEvalSuite",
     "PromptEvalCase",
     "PromptEvalResult",
+    "PromptOptimizationRun",
+    "PromptOptimizationRound",
     "AgentProfile",
     "AgentMemory",
     "AgentProactiveMessage",

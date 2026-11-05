@@ -10,29 +10,56 @@
         <span v-if="streaming" class="typing" role="status" aria-label="正在生成回答">
           <i></i><i></i><i></i>
         </span>
+        <TrustBadge v-if="trust" :trust="trust" />
       </div>
 
-      <div v-if="content" class="rh-markdown ai-markdown" aria-live="polite" v-html="renderedHtml"></div>
+      <!-- 正文：渲染后把 [n] 后处理为可交互上标（见 decorateCitations） -->
+      <div
+        v-if="content"
+        ref="bodyRef"
+        class="rh-markdown ai-markdown"
+        aria-live="polite"
+        v-html="renderedHtml"
+        @click="handleBodyClick"
+        @mouseover="handleRefHover"
+        @mouseleave="clearRefHover"
+        @keydown="handleRefKeydown"
+      ></div>
       <p v-else-if="streaming" class="thinking">正在阅读你的笔记…</p>
 
-      <!-- 检索引用：点击展开片段，不跳转页面（笔记库暂不支持按 id 直达） -->
+      <!-- 检索引用：点击展开片段并与正文上标双向高亮（笔记库暂不支持按 id 直达） -->
       <div v-if="citations.length" class="citations">
         <span class="citations-label">引用 {{ citations.length }} 段原文</span>
         <button
           v-for="item in citations"
           :key="`${item.chunk_id}-${item.index}`"
           class="citation-chip"
-          :class="{ open: activeCitationId === item.chunk_id }"
+          :class="{ open: activeCitationId === item.chunk_id, linked: hoveredChipIndex === item.index }"
           :aria-expanded="activeCitationId === item.chunk_id"
           :aria-label="`查看引用段落：${item.note_title}`"
-          @click="toggleCitation(item.chunk_id)"
+          @click="toggleCitation(item)"
+          @mouseenter="hoveredChipIndex = item.index"
+          @mouseleave="hoveredChipIndex = null"
         >
           <span class="citation-index">{{ item.index }}</span>
           <span class="citation-title">{{ item.note_title }}</span>
         </button>
         <p v-if="activeCitation" class="citation-snippet">
-          {{ activeCitation.snippet }}
-          <span class="citation-score">匹配度 {{ Math.round(activeCitation.score * 100) }}%</span>
+          <template v-if="snippetSegments">
+            <span
+              v-for="(seg, segIndex) in snippetSegments"
+              :key="segIndex"
+              :class="{ 'snippet-hl': seg.hl }"
+            >{{ seg.text }}</span>
+          </template>
+          <template v-else>{{ activeCitation.snippet }}</template>
+          <!-- vector_score 才是语义相似度（cosine 0~1）；RRF 排序分太小不适合展示成百分比 -->
+          <span class="citation-score">
+            <template v-if="activeCitation.vector_score > 0">
+              语义相关度 {{ Math.round(activeCitation.vector_score * 100) }}%
+            </template>
+            <template v-else>BM25 关键词命中（向量检索不可用）</template>
+          </span>
         </p>
       </div>
 
@@ -75,13 +102,14 @@
 <script setup lang="ts">
 /**
  * AI 消息气泡：用户消息纯文本、助手消息走 Markdown 管线（markdown-it + DOMPurify）。
- * 同时承载引用、Agent 执行轨迹与写操作确认卡。
+ * 同时承载可信度徽章、可交互引用上标（双向联动 + 支撑句高亮）、Agent 执行轨迹与写操作确认卡。
  */
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { WarningFilled } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
-import type { AgentStep, AwaitingConfirmation, Citation } from '../../api/ai'
+import TrustBadge from './TrustBadge.vue'
+import type { AgentStep, AwaitingConfirmation, Citation, TrustReport } from '../../api/ai'
 
 const props = withDefaults(
   defineProps<{
@@ -92,6 +120,7 @@ const props = withDefaults(
     streaming?: boolean
     pending?: AwaitingConfirmation | null
     error?: string | null
+    trust?: TrustReport | null
   }>(),
   {
     citations: () => [],
@@ -99,6 +128,7 @@ const props = withDefaults(
     streaming: false,
     pending: null,
     error: null,
+    trust: null,
   },
 )
 
@@ -134,13 +164,236 @@ const renderedHtml = computed(() => DOMPurify.sanitize(md.render(displayContent.
 /** 当前展开的引用片段，同一时间只展开一条 */
 const activeCitationId = ref<number | null>(null)
 
+/** 触发展开的上标所在回答句，用于片段内支撑句高亮；点 chip 展开时为空 */
+const activeSentence = ref('')
+
+/** chip 悬停时的编号，用于反向点亮正文中的对应上标 */
+const hoveredChipIndex = ref<number | null>(null)
+
+/** chip 点击后的脉冲编号（短暂点亮正文上标） */
+const pulseIndex = ref<number | null>(null)
+
+let pulseTimer: number | undefined
+
 const activeCitation = computed(
   () => props.citations.find((item) => item.chunk_id === activeCitationId.value) || null,
 )
 
-function toggleCitation(chunkId: number): void {
-  activeCitationId.value = activeCitationId.value === chunkId ? null : chunkId
+function toggleCitation(item: Citation): void {
+  if (activeCitationId.value === item.chunk_id) {
+    activeCitationId.value = null
+    activeSentence.value = ''
+  } else {
+    activeCitationId.value = item.chunk_id
+    activeSentence.value = ''
+    // 点 chip 反向脉冲正文上标，提示「这一条用在了哪」
+    pulseIndex.value = item.index
+    if (pulseTimer !== undefined) window.clearTimeout(pulseTimer)
+    pulseTimer = window.setTimeout(() => {
+      pulseIndex.value = null
+    }, 1300)
+  }
+  applyRefStates()
 }
+
+// ── 引用上标后处理与双向联动 ────────────────────────────────────
+
+const bodyRef = ref<HTMLElement | null>(null)
+
+const CITE_PATTERN = /\[(\d+)\]/g
+
+/**
+ * 把渲染后 HTML 文本节点中的 [n] 替换为可交互上标。
+ * 跳过代码块与已处理节点；流式期间 innerHTML 随 displayContent 重建，每次全量重跑。
+ */
+function decorateCitations(): void {
+  const root = bodyRef.value
+  if (!root) return
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const targets: Array<{ node: Text; matches: RegExpMatchArray[] }> = []
+  let node = walker.nextNode()
+  while (node) {
+    const textNode = node as Text
+    node = walker.nextNode()
+    const parent = textNode.parentElement
+    if (!parent || parent.closest('pre, code, sup.rh-cite-ref')) continue
+    const text = textNode.textContent ?? ''
+    CITE_PATTERN.lastIndex = 0
+    if (!CITE_PATTERN.test(text)) continue
+    CITE_PATTERN.lastIndex = 0
+    targets.push({ node: textNode, matches: [...text.matchAll(CITE_PATTERN)] })
+  }
+  for (const target of targets) replaceWithCitationRefs(target.node, target.matches)
+  applyRefStates()
+}
+
+function replaceWithCitationRefs(node: Text, matches: RegExpMatchArray[]): void {
+  const text = node.textContent ?? ''
+  const fragment = document.createDocumentFragment()
+  let cursor = 0
+  for (const match of matches) {
+    const start = match.index ?? 0
+    if (start > cursor) fragment.appendChild(document.createTextNode(text.slice(cursor, start)))
+    const sup = document.createElement('sup')
+    sup.className = 'rh-cite-ref'
+    sup.dataset.cite = match[1]
+    sup.setAttribute('role', 'button')
+    sup.setAttribute('tabindex', '0')
+    sup.setAttribute('aria-label', `查看引用来源 ${match[1]}`)
+    sup.textContent = match[1]
+    fragment.appendChild(sup)
+    cursor = start + match[0].length
+  }
+  if (cursor < text.length) fragment.appendChild(document.createTextNode(text.slice(cursor)))
+  node.replaceWith(fragment)
+}
+
+/** 按 hover / 脉冲 / 展开状态给上标加高亮类 */
+function applyRefStates(): void {
+  const root = bodyRef.value
+  if (!root) return
+  const linked = hoveredChipIndex.value
+  const pulse = pulseIndex.value
+  root.querySelectorAll<HTMLElement>('sup.rh-cite-ref').forEach((el) => {
+    const cite = Number(el.dataset.cite)
+    el.classList.toggle('is-linked', linked !== null && cite === linked)
+    el.classList.toggle('is-pulse', pulse !== null && cite === pulse)
+  })
+}
+
+/** 点击/回车正文上标：展开对应引用片段，并记录所在句子用于支撑句高亮 */
+function activateRef(sup: HTMLElement): void {
+  const cite = Number(sup.dataset.cite)
+  const citation = props.citations.find((item) => item.index === cite)
+  if (!citation) return
+  activeCitationId.value = activeCitationId.value === citation.chunk_id ? null : citation.chunk_id
+  activeSentence.value = activeCitationId.value === null ? '' : findSentenceAt(sup)
+}
+
+/** 计算上标所在的回答句子（按块级元素文本 + 上标偏移定位） */
+function findSentenceAt(sup: HTMLElement): string {
+  const block = sup.closest('p, li, blockquote, h1, h2, h3, h4, td')
+  if (!block) return ''
+  const full = block.textContent ?? ''
+  let offset = 0
+  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
+  let node = walker.nextNode() as Text | null
+  while (node) {
+    if (node.parentElement === sup) break
+    offset += (node.textContent ?? '').length
+    node = walker.nextNode() as Text | null
+  }
+  for (const match of full.matchAll(/[^。！？!?\n]*[。！？!?\n]?/g)) {
+    const start = match.index ?? 0
+    const end = start + match[0].length
+    if (offset >= start && offset < end) return match[0].trim()
+  }
+  return ''
+}
+
+function handleBodyClick(event: MouseEvent): void {
+  const sup = (event.target as HTMLElement).closest<HTMLElement>('sup.rh-cite-ref')
+  if (!sup) return
+  activateRef(sup)
+  applyRefStates()
+}
+
+function handleRefKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  const sup = (event.target as HTMLElement).closest<HTMLElement>('sup.rh-cite-ref')
+  if (!sup) return
+  event.preventDefault()
+  activateRef(sup)
+  applyRefStates()
+}
+
+/** 悬停正文上标：反向点亮对应引用 chip */
+function handleRefHover(event: MouseEvent): void {
+  const sup = (event.target as HTMLElement).closest<HTMLElement>('sup.rh-cite-ref')
+  const cite = sup ? Number(sup.dataset.cite) : null
+  hoveredChipIndex.value = cite !== null && !Number.isNaN(cite) ? cite : null
+}
+
+function clearRefHover(): void {
+  hoveredChipIndex.value = null
+}
+
+// ── 片段内支撑句高亮 ────────────────────────────────────────────
+
+interface SnippetSegment {
+  text: string
+  hl: boolean
+}
+
+/** 支撑句判定的相似度阈值：低于它不强标，诚实呈现「依据是整段」 */
+const SUPPORT_SIMILARITY_THRESHOLD = 0.35
+
+function charBigrams(text: string): Set<string> {
+  const cleaned = text.replace(/\s+/g, '')
+  const grams = new Set<string>()
+  for (let i = 0; i < cleaned.length - 1; i += 1) grams.add(cleaned.slice(i, i + 2))
+  return grams
+}
+
+/** 字符 bigram Dice 相似度（中英混合精简版，对标 retrieval.tokenize 思路） */
+function bigramSimilarity(a: string, b: string): number {
+  const gramsA = charBigrams(a)
+  const gramsB = charBigrams(b)
+  if (!gramsA.size || !gramsB.size) return 0
+  let intersection = 0
+  for (const gram of gramsA) if (gramsB.has(gram)) intersection += 1
+  return (2 * intersection) / (gramsA.size + gramsB.size)
+}
+
+/**
+ * 展开片段的渲染分段：与触发回答句最相似的片段句加高亮。
+ * 无触发句（点 chip 展开）或相似度不足时返回 null，整段原样展示。
+ */
+const snippetSegments = computed<Array<SnippetSegment> | null>(() => {
+  const citation = activeCitation.value
+  if (!citation || !activeSentence.value) return null
+  const pattern = /[^。！？!?\n]*[。！？!?\n]?/g
+  const parts = [...citation.snippet.matchAll(pattern)]
+    .map((match) => match[0])
+    .filter((part) => part.trim())
+  if (!parts.length) return null
+  let bestIndex = -1
+  let bestScore = 0
+  parts.forEach((part, index) => {
+    const score = bigramSimilarity(activeSentence.value, part)
+    if (score > bestScore) {
+      bestScore = score
+      bestIndex = index
+    }
+  })
+  if (bestIndex < 0 || bestScore < SUPPORT_SIMILARITY_THRESHOLD) return null
+  // 按原文位置重组，保留分隔标点：命中段整体替换
+  const segments: Array<SnippetSegment> = []
+  const full = citation.snippet
+  let cursor = 0
+  parts.forEach((part, index) => {
+    const start = full.indexOf(part, cursor)
+    if (start < 0) return
+    if (start > cursor) segments.push({ text: full.slice(cursor, start), hl: false })
+    segments.push({ text: part, hl: index === bestIndex })
+    cursor = start + part.length
+  })
+  if (cursor < full.length) segments.push({ text: full.slice(cursor), hl: false })
+  return segments
+})
+
+// 内容变化（流式增量 / 非流式赋值）后重建上标；innerHTML 已被 Vue 重写
+watch(displayContent, () => {
+  void nextTick(decorateCitations)
+})
+watch([hoveredChipIndex, pulseIndex], () => {
+  void nextTick(applyRefStates)
+})
+
+onUnmounted(() => {
+  if (frameId) cancelAnimationFrame(frameId)
+  if (pulseTimer !== undefined) window.clearTimeout(pulseTimer)
+})
 
 const TOOL_LABELS: Record<string, string> = {
   search_notes: '查找笔记',
@@ -337,6 +590,61 @@ function prettyJson(raw: string): string {
   margin-top: 6px;
   color: var(--rh-text-tertiary);
   font-size: var(--rh-fs-xs);
+}
+
+.citation-chip.linked {
+  border-color: var(--rh-ai-strong);
+  background: var(--rh-ai-subtle);
+}
+
+/* ── 引用上标（正文 [n] → 可交互 sup） ─────────────────────── */
+.ai-markdown :deep(sup.rh-cite-ref) {
+  margin: 0 1px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--rh-ai-subtle);
+  color: var(--rh-ai-strong);
+  font-size: var(--rh-fs-xs);
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: var(--rh-transition-all-fast);
+}
+
+.ai-markdown :deep(sup.rh-cite-ref:hover),
+.ai-markdown :deep(sup.rh-cite-ref.is-linked) {
+  background: var(--rh-ai);
+  color: var(--rh-on-ai);
+}
+
+.ai-markdown :deep(sup.rh-cite-ref.is-pulse) {
+  animation: citePulse 0.6s ease-in-out 2;
+}
+
+@keyframes citePulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-markdown :deep(sup.rh-cite-ref.is-pulse) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ── 片段内支撑句高亮 ─────────────────────────────────────── */
+.citation-snippet :deep(.snippet-hl),
+.citation-snippet .snippet-hl {
+  padding: 1px 2px;
+  border-radius: var(--rh-radius-xs);
+  background: var(--rh-ai-subtle);
+  color: var(--rh-text-primary);
 }
 
 .agent-steps {

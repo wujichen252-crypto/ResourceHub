@@ -20,6 +20,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/roi',
+    name: 'RoiDashboard',
+    component: () => import('../views/RoiDashboard.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/ai',
     name: 'AIWorkspace',
     component: () => import('../views/AI/Workspace.vue'),

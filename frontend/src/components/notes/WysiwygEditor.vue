@@ -78,6 +78,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   save: [id: number | undefined, content: string, showToast?: boolean]
+  'selection-change': [
+    state: { hasSelection: boolean; selectionText: string; rect: { top: number; left: number; bottom: number } },
+  ]
 }>()
 
 let isSaving = false
@@ -97,6 +100,24 @@ const editor = useEditor({
     const html = editor.value.getHTML()
     emit('update:modelValue', html)
 
+  },
+  // 选区变化时通知外层（内联 AI 菜单据此弹出/收起）
+  onSelectionUpdate: ({ editor: ed }) => {
+    const { from, to, empty } = ed.state.selection
+    const text = empty ? '' : ed.state.doc.textBetween(from, to, '\n')
+    const hasSelection = text.trim().length > 0
+    // 用编辑器自身坐标（相对视口），比 window.getSelection 更可靠
+    let rect = { top: 0, left: 0, bottom: 0 }
+    if (hasSelection) {
+      const start = ed.view.coordsAtPos(from)
+      const end = ed.view.coordsAtPos(to)
+      rect = {
+        top: Math.min(start.top, end.top),
+        left: start.left,
+        bottom: Math.max(start.bottom, end.bottom),
+      }
+    }
+    emit('selection-change', { hasSelection, selectionText: text, rect })
   },
 })
 
@@ -129,7 +150,41 @@ function manualSave() {
   triggerSave(html, true)
 }
 
-defineExpose({ manualSave })
+/** 选区纯文本 + 前后各 600 字符上下文（供内联 AI 请求） */
+function getInlineContext(): { text: string; context_before: string; context_after: string } {
+  const ed = editor.value
+  if (!ed) return { text: '', context_before: '', context_after: '' }
+  const { from, to } = ed.state.selection
+  const docSize = ed.state.doc.content.size
+  return {
+    text: ed.state.doc.textBetween(from, to, '\n'),
+    context_before: ed.state.doc.textBetween(Math.max(0, from - 600), from, '\n'),
+    context_after: ed.state.doc.textBetween(to, Math.min(docSize, to + 600), '\n'),
+  }
+}
+
+/** 在选区末尾之后插入内容（解释 / 提问结果）；选区为空时追加到文末 */
+function insertBelow(html: string) {
+  const ed = editor.value
+  if (!ed) return
+  const { selection } = ed.state
+  const pos = selection.empty ? ed.state.doc.content.size : selection.to
+  ed.chain().focus().insertContentAt(pos, html).run()
+}
+
+/** 用新内容替换当前选区（改写结果）；选区为空时退化为追加到文末 */
+function replaceSelection(html: string) {
+  const ed = editor.value
+  if (!ed) return
+  const { selection } = ed.state
+  if (selection.empty) {
+    ed.chain().focus().insertContentAt(ed.state.doc.content.size, html).run()
+    return
+  }
+  ed.chain().focus().insertContentAt(selection, html).run()
+}
+
+defineExpose({ manualSave, getInlineContext, insertBelow, replaceSelection })
 </script>
 
 <style scoped>
@@ -289,6 +344,11 @@ defineExpose({ manualSave })
   color: var(--rh-text-secondary);
   background: var(--rh-bg-subtle);
   border-radius: 0 var(--rh-radius-sm) var(--rh-radius-sm) 0;
+}
+
+/* 内联 AI 产出块：柠檬绿左边线，与普通引用区分 */
+:deep(.ProseMirror blockquote.rh-ai-inline) {
+  border-left-color: var(--rh-ai-strong);
 }
 
 :deep(.ProseMirror hr) {

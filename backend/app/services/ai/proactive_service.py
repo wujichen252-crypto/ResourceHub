@@ -241,7 +241,7 @@ class ProactiveService:
                 max_tokens=400,
             )
             await record_usage(
-                db, user_id, "proactive", settings.AI_FAST_MODEL, result.usage, result.latency_ms
+                user_id, "proactive", settings.AI_FAST_MODEL, result.usage, result.latency_ms
             )
             content = (result.content or "").strip()
             if content:

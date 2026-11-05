@@ -87,6 +87,27 @@
         v-model="editContent"
         :note-id="editingNoteId"
         @save="handleSave"
+        @selection-change="handleSelectionChange"
+      />
+
+      <!-- 内联 AI：选中文本 → 解释 / 改写 / 提问 → 确认后插入笔记 -->
+      <InlineAIMenu
+        :visible="inlineVisible"
+        :ai-configured="aiConfigured"
+        :rect="inlineRect"
+        @action="handleInlineAction"
+        @close="closeInlineMenu"
+      />
+      <InlineAIResult
+        :visible="inlineResultVisible"
+        :action="inlineAction"
+        :loading="inlineLoading"
+        :result="inlineResult"
+        :error="inlineError"
+        :rect="inlineRect"
+        @insert="handleInlineInsert"
+        @retry="retryInline"
+        @close="closeInlineResult"
       />
     </div>
 
@@ -218,13 +239,19 @@ import {
   FolderOpened, Folder, Document, Plus, ArrowLeft, Check, Upload, MoreFilled,
 } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 import { notesApi } from '../../api/notes'
 import { plazaApi } from '../../api/plaza'
+import { aiApi } from '../../api/ai'
+import type { InlineActionName, InlineAIPayload } from '../../api/ai'
+import { getApiErrorMessage } from '../../api/http'
 import { useNotesStore } from '../../stores/notes'
 import { useCategoriesStore } from '../../stores/categories'
 import type { Note } from '../../api/notes'
 import NoteReader from './NoteReader.vue'
 import WysiwygEditor from './WysiwygEditor.vue'
+import InlineAIMenu from './InlineAIMenu.vue'
+import InlineAIResult from './InlineAIResult.vue'
 import { formatRelative } from '../../utils/format'
 import EmptyState from '../common/EmptyState.vue'
 import LoadingState from '../common/LoadingState.vue'
@@ -334,6 +361,113 @@ function markSaved() {
 
 // 编辑内容 / 标题 / 标签 / 目录任一变化都视为未保存
 watch([editContent, editTitle, editTags, editCategoryId], () => markDirty())
+
+// ── 内联 AI（选中文本 → 解释 / 改写 / 提问）──
+// 短生命周期局部状态，不进 pinia，避免污染 AI 会话快照
+const aiConfigured = ref(true)
+const inlineVisible = ref(false)
+const inlineResultVisible = ref(false)
+const inlineAction = ref<InlineActionName>('explain')
+const inlineLoading = ref(false)
+const inlineResult = ref('')
+const inlineError = ref('')
+const inlineRect = ref({ top: 0, left: 0, bottom: 0 })
+/** 本次动作的附加要求 / 提问内容（插入拼装时用） */
+let inlineInstruction = ''
+/** 发起请求时的完整参数（重试用） */
+let lastInlinePayload: InlineAIPayload | null = null
+
+/** 编辑器选区变化：非空选区弹出菜单，空选区收起 */
+function handleSelectionChange(state: {
+  hasSelection: boolean
+  selectionText: string
+  rect: { top: number; left: number; bottom: number }
+}) {
+  if (state.hasSelection) {
+    inlineRect.value = state.rect
+    inlineVisible.value = true
+    if (!inlineLoading.value) closeInlineResult() // 新选区覆盖上一轮结果
+  } else {
+    inlineVisible.value = false
+  }
+}
+
+function closeInlineMenu() {
+  inlineVisible.value = false
+}
+
+async function handleInlineAction(action: InlineActionName, instruction: string) {
+  const ctx = editorRef.value?.getInlineContext()
+  if (!ctx || !ctx.text.trim()) return
+
+  inlineVisible.value = false // 菜单收起，结果卡片接管
+  inlineAction.value = action
+  inlineInstruction = instruction
+  inlineResult.value = ''
+  inlineError.value = ''
+  inlineLoading.value = true
+  inlineResultVisible.value = true
+
+  lastInlinePayload = {
+    action,
+    text: ctx.text,
+    instruction,
+    note_title: editTitle.value,
+    context_before: ctx.context_before,
+    context_after: ctx.context_after,
+  }
+  try {
+    const data = await aiApi.inlineAI(lastInlinePayload)
+    inlineResult.value = data.result
+  } catch (error) {
+    // 7001/7003 等业务错误 http 层已弹 toast，这里给卡片内兜底文案
+    inlineError.value = getApiErrorMessage(error, 'AI 处理失败，请重试')
+  } finally {
+    inlineLoading.value = false
+  }
+}
+
+function retryInline() {
+  if (!lastInlinePayload || inlineLoading.value) return
+  void handleInlineAction(lastInlinePayload.action, lastInlinePayload.instruction ?? '')
+}
+
+function closeInlineResult() {
+  inlineResultVisible.value = false
+  inlineResult.value = ''
+  inlineError.value = ''
+  lastInlinePayload = null
+}
+
+/** 纯文本转义，用于把用户问题安全拼进插入 HTML */
+function escapeHtmlText(s: string): string {
+  return s.replace(/[&<>"']/g, (ch) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] ?? ch
+  ))
+}
+
+/** 用户点「插入 / 替换」：Markdown → 消毒 HTML → 写入编辑器（自动保存随后触发） */
+function handleInlineInsert() {
+  if (!inlineResult.value) return
+  const html = DOMPurify.sanitize(md.render(inlineResult.value))
+  if (!html) return
+
+  if (inlineAction.value === 'rewrite') {
+    editorRef.value?.replaceSelection(html)
+  } else if (inlineAction.value === 'ask') {
+    // 问 + 答两段插入到选区下方
+    editorRef.value?.insertBelow(
+      `<p><strong>问：${escapeHtmlText(inlineInstruction)}</strong></p>`
+      + `<blockquote class="rh-ai-inline" data-source="inline-ai">${html}</blockquote>`,
+    )
+  } else {
+    // 解释：引用块插入到选区下方，原文保留
+    editorRef.value?.insertBelow(
+      `<blockquote class="rh-ai-inline" data-source="inline-ai">${html}</blockquote>`,
+    )
+  }
+  closeInlineResult()
+}
 
 // Note context menu
 const noteContextMenu = reactive({
@@ -575,6 +709,8 @@ async function cancelEdit() {
   }
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
   isDirty.value = false
+  closeInlineMenu()
+  closeInlineResult()
   if (isCreating.value) {
     isCreating.value = false
   } else {
@@ -669,6 +805,10 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
   document.addEventListener('click', closeNoteContextMenu)
   window.addEventListener('beforeunload', handleBeforeUnload)
+  // 拉取 AI 配置状态：未配置时内联菜单按钮置灰并给出引导文案（失败不阻塞，默认可用）
+  aiApi.status()
+    .then((status) => { aiConfigured.value = status.configured })
+    .catch(() => {})
 })
 
 onUnmounted(() => {

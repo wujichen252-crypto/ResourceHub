@@ -96,6 +96,11 @@
   border-radius: 0 var(--rh-radius-md) var(--rh-radius-md) 0;
 }
 
+/* 内联 AI 产出块：柠檬绿左边线与普通引用区分 */
+.rh-markdown blockquote[data-source='inline-ai'] {
+  border-left-color: var(--rh-ai-strong);
+}
+
 /* 链接（PlazaDetail 独有规则） */
 .rh-markdown a {
   color: var(--rh-primary);

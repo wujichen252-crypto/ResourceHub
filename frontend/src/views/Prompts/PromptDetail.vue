@@ -22,6 +22,9 @@
             <el-button @click="showVersionDrawer = true">
               <el-icon><Clock /></el-icon> 历史版本
             </el-button>
+            <el-button @click="showOptimizer = true">
+              <el-icon><MagicStick /></el-icon> AI 优化
+            </el-button>
             <el-button @click="router.push(`/prompts/${prompt.id}/lab`)">
               <el-icon><DataAnalysis /></el-icon> 测试提示词
             </el-button>
@@ -192,6 +195,14 @@
       :prompt-id="prompt?.id ?? null"
       @restored="handleVersionRestored"
     />
+
+    <!-- AI 自动优化抽屉 -->
+    <OptimizePanel
+      v-model="showOptimizer"
+      :prompt-id="prompt?.id ?? null"
+      @accepted="handleOptimizeAccepted"
+      @view-versions="handleViewVersions"
+    />
   </div>
 </template>
 
@@ -201,12 +212,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft, ArrowDown, Star, StarFilled, Edit, Delete, Clock,
-  CopyDocument, MagicStick, Select, Promotion, Document, DataAnalysis,
+  CopyDocument, MagicStick, Select, Promotion, Document, DataAnalysis, Plus,
 } from '@element-plus/icons-vue'
 import { usePromptsStore } from '../../stores/prompts'
 import { plazaApi } from '../../api/plaza'
 import { renderTemplate } from '../../utils/render'
 import VersionHistoryPanel from '../../components/prompts/VersionHistoryPanel.vue'
+import OptimizePanel from '../../components/prompts/OptimizePanel.vue'
 import EmptyState from '../../components/common/EmptyState.vue'
 import ErrorState from '../../components/common/ErrorState.vue'
 import LoadingState from '../../components/common/LoadingState.vue'
@@ -223,6 +235,7 @@ const renderedResult = ref('')
 const hasUsed = ref(false)
 const livePreview = ref(false)
 const showVersionDrawer = ref(false)
+const showOptimizer = ref(false)
 const publishing = ref(false)
 const selectedPresetId = ref<number | null>(null)
 const variableValues = reactive<Record<string, string>>({})
@@ -331,6 +344,23 @@ async function togglePublish() {
 
 function handleVersionRestored() {
   showVersionDrawer.value = false
+}
+
+/** 候选已采纳为新版本：刷新正文，保证详情页展示最新内容 */
+async function handleOptimizeAccepted() {
+  const id = Number(route.params.id)
+  if (!id) return
+  try {
+    await promptsStore.fetchPrompt(id)
+  } catch {
+    // 刷新失败不打断流程，用户手动刷新即可
+  }
+}
+
+/** 优化完成跳去看版本历史：切换抽屉 */
+function handleViewVersions() {
+  showOptimizer.value = false
+  showVersionDrawer.value = true
 }
 
 function handlePresetSelect(id: number | null) {

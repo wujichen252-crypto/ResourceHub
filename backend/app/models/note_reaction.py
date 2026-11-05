@@ -17,21 +17,23 @@ class NoteLike(Base):
     """广场笔记点赞（一个用户对一篇公开笔记最多一行）"""
 
     __tablename__ = "note_likes"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    note_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("notes.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
-    )
-
     __table_args__ = (
         UniqueConstraint("note_id", "user_id", name="uq_note_likes_note_user"),
         Index("ix_note_likes_user_created", "user_id", "created_at"),
+        {"comment": "广场笔记点赞表：note_id+user_id 联合唯一，一人一篇最多一行"},
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="点赞 ID，主键自增"
+    )
+    note_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("notes.id", ondelete="CASCADE"), nullable=False, comment="被点赞的笔记 ID（级联删除）"
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="点赞用户 ID（级联删除）"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="点赞时间"
     )
 
 
@@ -39,19 +41,21 @@ class NoteFavorite(Base):
     """广场笔记收藏（只读书签，区别于 fork 复制副本）"""
 
     __tablename__ = "note_favorites"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    note_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("notes.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now()
-    )
-
     __table_args__ = (
         UniqueConstraint("note_id", "user_id", name="uq_note_favorites_note_user"),
         Index("ix_note_favorites_user_created", "user_id", "created_at"),
+        {"comment": "广场笔记收藏表：只读书签（区别于 fork 复制副本），note_id+user_id 联合唯一"},
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, comment="收藏 ID，主键自增"
+    )
+    note_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("notes.id", ondelete="CASCADE"), nullable=False, comment="被收藏的笔记 ID（级联删除）"
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="收藏用户 ID（级联删除）"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), comment="收藏时间"
     )

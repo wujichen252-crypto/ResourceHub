@@ -36,7 +36,8 @@ class FakeProvider:
 def ai_enabled(monkeypatch):
     """开启 AI 可用开关并替换为假模型"""
     monkeypatch.setattr(settings, "AI_API_KEY", "test-key")
-    monkeypatch.setattr(settings, "AI_CHAT_MODEL", "test-chat")
+    # 评测默认走轻量模型（AI_FAST_MODEL），与 eval_service.run_content 的默认一致
+    monkeypatch.setattr(settings, "AI_FAST_MODEL", "test-chat")
     provider = FakeProvider()
     monkeypatch.setattr(
         "app.services.ai.eval_service.get_chat_provider", lambda: provider

@@ -148,14 +148,14 @@
               <div class="case-head">
                 <div class="case-vars">
                   <el-tag
-                    v-for="(value, key) in item.variables"
+                    v-for="(value, key) in item.variables || {}"
                     :key="key"
                     size="small"
                     effect="plain"
                   >
                     {{ key }}：{{ value || '（空）' }}
                   </el-tag>
-                  <span v-if="!Object.keys(item.variables).length" class="case-no-var">没有待填内容</span>
+                  <span v-if="!Object.keys(item.variables || {}).length" class="case-no-var">没有待填内容</span>
                 </div>
                 <span class="case-score" :class="scoreClass(item.score)">
                   {{ item.score === null ? '未评分' : item.score }}

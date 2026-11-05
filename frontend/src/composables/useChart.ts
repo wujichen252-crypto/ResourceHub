@@ -6,7 +6,7 @@
  */
 import { onMounted, onUnmounted, watch, type Ref } from 'vue'
 import * as echarts from 'echarts/core'
-import { BarChart, HeatmapChart, LineChart, PieChart } from 'echarts/charts'
+import { BarChart, HeatmapChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
 import {
   CalendarComponent,
   GridComponent,
@@ -22,6 +22,7 @@ echarts.use([
   HeatmapChart,
   LineChart,
   PieChart,
+  ScatterChart,
   CalendarComponent,
   GridComponent,
   LegendComponent,

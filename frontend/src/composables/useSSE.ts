@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
  * SSE 流式请求组合式函数。
  *
  * 后端事件协议（每个事件为 `event: xxx\ndata: {json}\n\n`）：
- * meta / token / citation / tool_call / tool_result / awaiting_confirmation / done / error
+ * meta / token / citation / trust / tool_call / tool_result / awaiting_confirmation / done / error
  *
  * 使用 fetch + ReadableStream 而非 EventSource：
  * EventSource 只支持 GET 且无法携带 Authorization 头，而这里需要 POST + JWT。
@@ -21,6 +21,8 @@ export interface SSEHandlers {
   onMeta?: SSEHandler
   onToken?: SSEHandler
   onCitation?: SSEHandler
+  /** 回答可信度报告（token 流结束、done 之前） */
+  onTrust?: SSEHandler
   onToolCall?: SSEHandler
   onToolResult?: SSEHandler
   onAwaitingConfirmation?: SSEHandler
@@ -88,6 +90,7 @@ function dispatch(event: string, data: SSEData, handlers: SSEHandlers): void {
     meta: handlers.onMeta,
     token: handlers.onToken,
     citation: handlers.onCitation,
+    trust: handlers.onTrust,
     tool_call: handlers.onToolCall,
     tool_result: handlers.onToolResult,
     awaiting_confirmation: handlers.onAwaitingConfirmation,

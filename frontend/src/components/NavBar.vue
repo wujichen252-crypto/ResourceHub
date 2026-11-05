@@ -9,6 +9,11 @@
       <el-icon><Plus /></el-icon><span>新建提示词</span>
     </button>
 
+    <button class="search-trigger" aria-label="全局搜索（Ctrl + K）" @click="openSearch">
+      <el-icon><Search /></el-icon><span>搜索</span>
+      <span class="search-kbd" aria-hidden="true">Ctrl K</span>
+    </button>
+
     <div class="nav-label">工作区</div>
     <nav class="nav-links">
       <RouterLink v-for="item in mainLinks" :key="item.path" class="nav-link" :to="item.path" :class="{ active: activeIndex === item.path }" :aria-current="activeIndex === item.path ? 'page' : undefined">
@@ -58,18 +63,20 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowDown, Collection, Cpu, Document, Grid, MagicStick, Menu, Monitor, Moon, Plus, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
+import { ArrowDown, Collection, Cpu, DataAnalysis, Document, Grid, MagicStick, Menu, Monitor, Moon, Plus, Search, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { usePromptsStore } from '../stores/prompts'
 import { useAgentIdentityStore } from '../stores/agentIdentity'
 import { useTheme } from '../composables/useTheme'
+import { useGlobalSearch } from '../composables/useGlobalSearch'
 
 const router = useRouter(); const route = useRoute(); const authStore = useAuthStore(); const promptsStore = usePromptsStore(); const identityStore = useAgentIdentityStore()
 const { isDark, themeLabel, toggleTheme } = useTheme()
+const { openSearch } = useGlobalSearch()
 const userMenuOpen = ref(false); const mobileOpen = ref(false); const footerRef = ref<HTMLElement | null>(null)
-const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/ai', label: 'AI 工作台', icon: Cpu }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }, { path: '/plaza', label: '资源广场', icon: Grid }]
-const activeIndex = computed(() => route.path.startsWith('/ai') ? '/ai' : route.path.startsWith('/notes') ? '/notes' : route.path.startsWith('/prompts') ? '/prompts' : route.path.startsWith('/plaza') ? '/plaza' : route.path.startsWith('/settings') ? '/settings' : '/dashboard')
+const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/roi', label: 'ROI 看板', icon: DataAnalysis }, { path: '/ai', label: 'AI 工作台', icon: Cpu }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }, { path: '/plaza', label: '资源广场', icon: Grid }]
+const activeIndex = computed(() => route.path.startsWith('/ai') ? '/ai' : route.path.startsWith('/roi') ? '/roi' : route.path.startsWith('/notes') ? '/notes' : route.path.startsWith('/prompts') ? '/prompts' : route.path.startsWith('/plaza') ? '/plaza' : route.path.startsWith('/settings') ? '/settings' : '/dashboard')
 const avatarText = computed(() => (authStore.user?.username || '用户').charAt(0).toUpperCase())
 
 /** 点击账户菜单外部或按 Esc 时收起弹层 */
@@ -97,6 +104,9 @@ function logout() { ElMessageBox.confirm('确定要退出登录吗？', '退出�
 .brand small { display: block; margin-top: 3px; color: var(--rh-text-tertiary); font-size: 11px; }
 .quick-create { display: flex; align-items: center; gap: 8px; width: 100%; height: 40px; padding: 0 12px; border: 0; border-radius: var(--rh-radius-sm); background: var(--rh-primary); color: var(--rh-on-primary); font-weight: 600; cursor: pointer; transition: var(--rh-transition-all-normal); }
 .quick-create:hover { background: var(--rh-primary-hover); transform: translateY(-1px); box-shadow: var(--rh-shadow-md); }
+.search-trigger { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; margin-top: 8px; padding: 0 12px; border: 1px solid var(--rh-border); border-radius: var(--rh-radius-sm); background: transparent; color: var(--rh-text-secondary); font-size: 13px; cursor: pointer; transition: var(--rh-transition-all-normal); }
+.search-trigger:hover { background: var(--rh-bg-hover); color: var(--rh-text-primary); border-color: var(--rh-border-strong); }
+.search-trigger .search-kbd { margin-left: auto; padding: 1px 6px; border: 1px solid var(--rh-border); border-radius: var(--rh-radius-xs); color: var(--rh-text-tertiary); font-size: 10px; }
 .nav-label { padding: 28px 12px 8px; color: var(--rh-text-tertiary); font-size: 11px; font-weight: 700; letter-spacing: .04em; }.nav-label-lower { padding-top: 24px; }
 .nav-links { display: grid; gap: 3px; }
 .nav-link { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 0 11px; border: 0; border-radius: var(--rh-radius-sm); background: transparent; color: var(--rh-text-secondary); text-align: left; text-decoration: none; cursor: pointer; transition: var(--rh-transition-all-normal); }

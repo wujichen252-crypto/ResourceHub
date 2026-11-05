@@ -86,7 +86,9 @@ def _suite_out(suite: PromptEvalSuite, with_cases: bool = True) -> dict[str, Any
     return data
 
 
-def _result_out(result: PromptEvalResult, version_number: int | None) -> dict[str, Any]:
+def _result_out(
+    result: PromptEvalResult, version_number: int | None, variables: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """评测结果输出结构"""
     return {
         "id": result.id,
@@ -100,6 +102,8 @@ def _result_out(result: PromptEvalResult, version_number: int | None) -> dict[st
         "judge_reason": result.judge_reason,
         "latency_ms": result.latency_ms,
         "total_tokens": result.total_tokens,
+        # 历史记录补充用例变量取值，前端渲染标签需要
+        "variables": variables if variables is not None else {},
         "created_at": result.created_at.isoformat() if result.created_at else None,
     }
 
@@ -167,7 +171,30 @@ class EvalService:
         suite = await self._get_suite(db, user_id, suite_id)
         prompt = await self._load_prompt(db, user_id, suite.prompt_id)
         content, version = await self._resolve_content(db, prompt, payload.prompt_version_id)
+        return await self.run_content(
+            db,
+            user_id,
+            suite,
+            content,
+            prompt_version_id=payload.prompt_version_id,
+            version_number=version.version_number if version else None,
+            model=payload.model,
+            temperature=payload.temperature,
+        )
 
+    async def run_content(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        suite: PromptEvalSuite,
+        content: str,
+        *,
+        prompt_version_id: int | None = None,
+        version_number: int | None = None,
+        model: str | None = None,
+        temperature: float = 0.3,
+    ) -> dict[str, Any]:
+        """对任意内容字符串执行评测（自动优化器复用入口，不要求内容已落库为版本）"""
         await ensure_quota(db, user_id)
 
         try:
@@ -175,7 +202,8 @@ class EvalService:
         except AIProviderError as exc:
             raise APIError(exc.code, str(exc)) from exc
 
-        model = payload.model or settings.AI_CHAT_MODEL
+        # 评测默认走轻量模型：对话模型（GLM-5.3 系）为永久思考模式，复杂任务单次生成超 10 分钟必然超时
+        model = model or settings.AI_FAST_MODEL
         judge_model = suite.judge_model or model
         results: list[dict[str, Any]] = []
         scores: list[float] = []
@@ -189,7 +217,7 @@ class EvalService:
                 answer = await provider.chat(
                     [{"role": "user", "content": rendered_content}],
                     model=model,
-                    temperature=payload.temperature,
+                    temperature=temperature,
                 )
             except AIProviderError as exc:
                 # 生成阶段失败：放弃本轮全部结果，避免留下半套分数
@@ -205,7 +233,7 @@ class EvalService:
             record = PromptEvalResult(
                 suite_id=suite.id,
                 case_id=case.id,
-                prompt_version_id=payload.prompt_version_id,
+                prompt_version_id=prompt_version_id,
                 model=model,
                 output=answer.content,
                 score=score,
@@ -229,7 +257,8 @@ class EvalService:
                 scores.append(score)
 
             await record_usage(
-                db, user_id, "eval", model, usage, record.latency_ms
+                user_id, "eval", model, usage, record.latency_ms,
+                prompt_id=suite.prompt_id,
             )
 
         await db.commit()
@@ -237,8 +266,8 @@ class EvalService:
         return {
             "suite_id": suite.id,
             "prompt_id": suite.prompt_id,
-            "prompt_version_id": payload.prompt_version_id,
-            "version_number": version.version_number if version else None,
+            "prompt_version_id": prompt_version_id,
+            "version_number": version_number,
             "model": model,
             "judge_model": judge_model,
             "case_count": len(results),
@@ -250,16 +279,28 @@ class EvalService:
     async def list_results(
         self, db: AsyncSession, user_id: int, suite_id: int, limit: int = 50
     ) -> list[dict[str, Any]]:
-        """最近的结果记录，按时间倒序"""
+        """最近的结果记录，按时间倒序；关联用例补全变量取值"""
         await self._get_suite(db, user_id, suite_id)
         result = await db.execute(
-            select(PromptEvalResult, PromptVersion.version_number)
+            select(
+                PromptEvalResult,
+                PromptVersion.version_number,
+                PromptEvalCase.variables,
+            )
             .outerjoin(PromptVersion, PromptVersion.id == PromptEvalResult.prompt_version_id)
+            .outerjoin(PromptEvalCase, PromptEvalCase.id == PromptEvalResult.case_id)
             .where(PromptEvalResult.suite_id == suite_id)
             .order_by(PromptEvalResult.id.desc())
             .limit(limit)
         )
-        return [_result_out(item, version_number) for item, version_number in result.all()]
+        return [
+            _result_out(
+                item,
+                version_number,
+                _load_json(case_variables, {}) if case_variables is not None else {},
+            )
+            for item, version_number, case_variables in result.all()
+        ]
 
     async def _get_suite(
         self, db: AsyncSession, user_id: int, suite_id: int

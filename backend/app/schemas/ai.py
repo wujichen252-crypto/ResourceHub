@@ -1,6 +1,7 @@
 """AI 能力层请求/响应模式"""
 
 from datetime import datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -135,4 +136,49 @@ class EvalRunRequest(BaseModel):
     model: str | None = Field(default=None, max_length=64, description="覆盖默认对话模型")
     prompt_version_id: int | None = Field(default=None, description="指定历史版本做 A/B 对比")
     temperature: float = Field(default=0.3, ge=0, le=2)
+
+
+class OptimizationStartRequest(BaseModel):
+    """启动提示词自动优化会话"""
+
+    prompt_id: int
+    suite_id: int
+    prompt_version_id: int | None = Field(
+        default=None, description="作为基线的历史版本，缺省用当前正文"
+    )
+    max_rounds: int = Field(default=3, ge=1, le=5, description="最大优化轮数")
+    score_threshold: float = Field(
+        default=80.0, ge=0, le=100, description="低于该分的用例才参与诊断"
+    )
+    temperature: float = Field(default=0.3, ge=0, le=2)
+
+
+class InlineAction(str, Enum):
+    """笔记内联 AI 动作类型"""
+
+    EXPLAIN = "explain"  # 解释选中文本
+    REWRITE = "rewrite"  # 改写选中文本
+    ASK = "ask"  # 以选中文本为上下文提问
+
+
+class InlineAIRequest(BaseModel):
+    """笔记内联 AI 请求（选中文本 + 上下文）"""
+
+    action: InlineAction = Field(description="动作类型")
+    text: str = Field(min_length=1, max_length=2000, description="选中的原文（纯文本）")
+    instruction: str = Field(
+        default="", max_length=500, description="改写附加要求 / 提问的问题"
+    )
+    note_title: str = Field(default="", max_length=255, description="笔记标题，供模型理解语境")
+    context_before: str = Field(default="", max_length=600, description="选区前文（纯文本截断）")
+    context_after: str = Field(default="", max_length=600, description="选区后文（纯文本截断）")
+
+
+class InlineAIResponse(BaseModel):
+    """笔记内联 AI 响应"""
+
+    action: InlineAction
+    result: str = Field(description="AI 输出（Markdown 纯文本）")
+    model: str = Field(description="实际使用的模型名")
+    tokens: int = Field(description="本次消耗总 token")
 

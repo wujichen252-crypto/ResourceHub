@@ -11,6 +11,7 @@ import {
   type AgentStep,
   type AwaitingConfirmation,
   type Citation,
+  type TrustReport,
 } from '../api/ai'
 
 /**
@@ -32,6 +33,7 @@ export interface ChatBubble {
   streaming: boolean
   pending: AwaitingConfirmation | null
   error: string | null
+  trust: TrustReport | null
 }
 
 /**
@@ -80,6 +82,7 @@ function restoreBubbles(saved: ChatBubble[]): ChatBubble[] {
         streaming: false,
         pending: item.pending ?? null,
         error: wasStreaming ? '页面刷新让这次回答中断了，可以重新发送。' : (item.error ?? null),
+        trust: (item.trust ?? null) as TrustReport | null,
       }
     })
 }
@@ -192,6 +195,35 @@ export const useAIWorkspaceStore = defineStore('aiWorkspace', () => {
       note_title: typeof data.note_title === 'string' ? data.note_title : '未命名笔记',
       snippet: typeof data.snippet === 'string' ? data.snippet : '',
       score: typeof data.score === 'number' ? data.score : 0,
+      vector_score: typeof data.vector_score === 'number' ? data.vector_score : 0,
+    }
+  }
+
+  /** SSE trust 事件 → 强类型可信度报告 */
+  function toTrust(data: SSEData): TrustReport {
+    const factors = (data.factors ?? null) as TrustReport['factors'] | null
+    return {
+      mode: (typeof data.mode === 'string' ? data.mode : 'rag') as TrustReport['mode'],
+      score: typeof data.score === 'number' ? data.score : null,
+      level: (typeof data.level === 'string' ? data.level : 'neutral') as TrustReport['level'],
+      factors:
+        factors && typeof factors === 'object'
+          ? {
+              coverage: typeof factors.coverage === 'number' ? factors.coverage : 0,
+              quality: typeof factors.quality === 'number' ? factors.quality : 0,
+              validity: typeof factors.validity === 'number' ? factors.validity : 0,
+            }
+          : null,
+      cited_indices: Array.isArray(data.cited_indices)
+        ? data.cited_indices.filter((i): i is number => typeof i === 'number')
+        : [],
+      invalid_indices: Array.isArray(data.invalid_indices)
+        ? data.invalid_indices.filter((i): i is number => typeof i === 'number')
+        : [],
+      sentence_count: typeof data.sentence_count === 'number' ? data.sentence_count : 0,
+      cited_sentence_count:
+        typeof data.cited_sentence_count === 'number' ? data.cited_sentence_count : 0,
+      retrieval_degraded: data.retrieval_degraded === true,
     }
   }
 
@@ -206,6 +238,9 @@ export const useAIWorkspaceStore = defineStore('aiWorkspace', () => {
       },
       onCitation(data) {
         bubble.citations.push(toCitation(data))
+      },
+      onTrust(data) {
+        bubble.trust = toTrust(data)
       },
       onDone() {
         bubble.streaming = false
@@ -291,6 +326,7 @@ export const useAIWorkspaceStore = defineStore('aiWorkspace', () => {
       streaming: false,
       pending: null,
       error: null,
+      trust: null,
     })
     const assistantBubble = reactive<ChatBubble>({
       id: nextBubbleId(),
@@ -301,6 +337,7 @@ export const useAIWorkspaceStore = defineStore('aiWorkspace', () => {
       streaming: true,
       pending: null,
       error: null,
+      trust: null,
     })
     messages.value.push(userBubble, assistantBubble)
 

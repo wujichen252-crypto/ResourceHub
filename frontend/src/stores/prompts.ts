@@ -177,12 +177,6 @@ export const usePromptsStore = defineStore('prompts', () => {
     fetchPrompts()
   }
 
-  function toggleFavoritesOnly() {
-    showFavoritesOnly.value = !showFavoritesOnly.value
-    page.value = 1
-    fetchPrompts()
-  }
-
   function setPage(p: number) {
     page.value = p
     fetchPrompts()
@@ -224,7 +218,6 @@ export const usePromptsStore = defineStore('prompts', () => {
     updateVersionLabels,
     setCategory,
     setSearch,
-    toggleFavoritesOnly,
     setPage,
     setTag,
   }

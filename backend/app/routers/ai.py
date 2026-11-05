@@ -1,5 +1,7 @@
 """AI 能力层路由：状态、索引、RAG 问答、Agent 运行与恢复"""
 
+import json
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
@@ -19,11 +21,15 @@ from app.schemas.ai import (
     EvalRunRequest,
     EvalSuiteCreate,
     IndexRebuildRequest,
+    InlineAIRequest,
+    OptimizationStartRequest,
 )
 from app.services.ai.agent import AgentService
 from app.services.ai.chat_service import ChatService
 from app.services.ai.eval_service import EVAL_SERVICE
 from app.services.ai.index_service import IndexService
+from app.services.ai.inline_service import InlineService
+from app.services.ai.optimizer_service import OPTIMIZER_SERVICE
 from app.services.ai.persona_service import PersonaService
 from app.services.ai.proactive_service import ProactiveService
 
@@ -33,6 +39,7 @@ agent_service = AgentService()
 index_service = IndexService()
 persona_service = PersonaService()
 proactive_service = ProactiveService()
+inline_service = InlineService()
 
 SSE_HEADERS = {
     "Cache-Control": "no-cache",
@@ -201,6 +208,17 @@ async def list_messages(
         .order_by(AIMessage.id)
     )
     messages = result.scalars().all()
+
+    def _decode_trust(raw: str | None) -> dict | None:
+        """解析落库的可信度报告；脏数据跳过，历史消息优雅降级"""
+        if not raw:
+            return None
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        return value if isinstance(value, dict) else None
+
     return success_response(
         data={
             "items": [
@@ -209,6 +227,7 @@ async def list_messages(
                     "role": item.role,
                     "content": item.content,
                     "citations": item.citations,
+                    "trust": _decode_trust(item.trust_json),
                     "created_at": item.created_at,
                 }
                 for item in messages
@@ -216,6 +235,18 @@ async def list_messages(
         },
         msg="获取会话消息成功",
     )
+
+
+@router.post("/note/inline")
+async def note_inline(
+    payload: InlineAIRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """笔记内联 AI：选中文本解释 / 改写 / 提问（非流式，走轻量模型）"""
+    _ensure_ai_ready()
+    result = await inline_service.run(db, current_user, payload)
+    return success_response(data=result.model_dump(mode="json"), msg="内联 AI 处理完成")
 
 
 @router.get("/eval/suites")
@@ -274,6 +305,88 @@ async def list_eval_results(
     """评测结果历史（时间倒序）"""
     items = await EVAL_SERVICE.list_results(db, current_user.id, suite_id, limit)
     return success_response(data={"items": items}, msg="获取评测结果成功")
+
+
+# ── 提示词自动优化器（评测闭环）──
+
+
+@router.post("/prompt-optimizer/runs", status_code=201)
+async def start_optimization(
+    payload: OptimizationStartRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """启动自动优化会话：基线评测 → AI 诊断改写 → 候选评测（后台执行）"""
+    _ensure_ai_ready()
+    result = await OPTIMIZER_SERVICE.start_run(db, current_user.id, payload)
+    return success_response(data=result, msg="优化会话已启动", code=201)
+
+
+@router.get("/prompt-optimizer/runs")
+async def list_optimization_runs(
+    prompt_id: int | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """优化会话列表（时间倒序，可按提示词过滤）；用于恢复进行中的会话"""
+    items = await OPTIMIZER_SERVICE.list_runs(db, current_user.id, prompt_id)
+    return success_response(data={"items": items}, msg="获取优化会话列表成功")
+
+
+@router.get("/prompt-optimizer/runs/{run_id}")
+async def get_optimization_status(
+    run_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """轮询优化会话状态与当前轮结果"""
+    result = await OPTIMIZER_SERVICE.get_status(db, current_user.id, run_id)
+    return success_response(data=result, msg="获取优化状态成功")
+
+
+@router.get("/prompt-optimizer/runs/{run_id}/rounds")
+async def list_optimization_rounds(
+    run_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """优化会话的轮次历史（供回放）"""
+    items = await OPTIMIZER_SERVICE.list_rounds(db, current_user.id, run_id)
+    return success_response(data={"items": items}, msg="获取轮次历史成功")
+
+
+@router.post("/prompt-optimizer/runs/{run_id}/iterate")
+async def iterate_optimization(
+    run_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """继续下一轮优化"""
+    _ensure_ai_ready()
+    result = await OPTIMIZER_SERVICE.iterate(db, current_user.id, run_id)
+    return success_response(data=result, msg="已开始下一轮优化")
+
+
+@router.post("/prompt-optimizer/runs/{run_id}/accept")
+async def accept_optimization(
+    run_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """采纳候选：写入新版本并同步更新正文"""
+    result = await OPTIMIZER_SERVICE.accept(db, current_user.id, run_id)
+    return success_response(data=result, msg="已采纳为新版本")
+
+
+@router.post("/prompt-optimizer/runs/{run_id}/cancel")
+async def cancel_optimization(
+    run_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """取消优化会话"""
+    result = await OPTIMIZER_SERVICE.cancel(db, current_user.id, run_id)
+    return success_response(data=result, msg="已取消优化会话")
 
 
 async def _scalar(db: AsyncSession, query) -> int:
