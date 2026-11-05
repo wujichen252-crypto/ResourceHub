@@ -2,23 +2,17 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# 复制依赖文件
-COPY pyproject.toml ./
+# ── 依赖安装：以 uv.lock 为唯一事实来源 ──
+# 原实现手写 pip 清单，新增依赖时极易漏装（例如搜索适配层所需 httpx）。
+# 改为按 uv.lock 冻结安装，与本地/CI 版本完全一致；--frozen 在锁文件与
+# pyproject.toml 不一致时会直接失败，从而把依赖漂移挡在构建阶段。
+RUN pip install --no-cache-dir uv
 
-# 安装依赖 - 直接从 pyproject.toml 提取
-RUN pip install --no-cache-dir \
-    fastapi==0.115.0 \
-    uvicorn[standard]==0.30.0 \
-    sqlalchemy[asyncio]==2.0.35 \
-    aiosqlite==0.20.0 \
-    aiomysql==0.3.2 \
-    alembic==1.13.2 \
-    pydantic==2.9.0 \
-    pydantic-settings==2.5.0 \
-    python-jose[cryptography]==3.3.0 \
-    passlib[bcrypt]==1.7.4 \
-    bcrypt==4.1.3 \
-    python-multipart==0.0.12
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
 
 # 复制源码
 COPY . .

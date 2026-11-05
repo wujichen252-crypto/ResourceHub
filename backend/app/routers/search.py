@@ -4,10 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_db, get_current_user
 from app.core.response import success_response
 from app.models.user import User
-from app.services.search_service import SearchService
+from app.services.global_search_service import GlobalSearchService
 
 router = APIRouter(tags=["全局搜索"])
-service = SearchService()
+service = GlobalSearchService()
 
 
 @router.get("")

@@ -26,8 +26,8 @@ from app.services.ai.retrieval import retrieve
 from app.services.ai.safety import (
     SYSTEM_GUARD,
     detect_prompt_injection,
+    is_short_greeting,
     mask_pii,
-    refusal_text,
     wrap_untrusted_context,
 )
 from app.services.ai.sse import sse_event
@@ -79,8 +79,12 @@ class ChatService:
         memories = await self.memory_service.retrieve(db, user.id, request.message)
         memory_context = build_memory_context(memories)
 
+        # 问候 / 闲聊 / 短致谢不走 RAG 检索，避免零命中触发拒答。
+        # 这类消息即使检索也是空结果，直接用通用知识回答即可。
+        greeting_only = is_short_greeting(request.message)
+
         hits = []
-        if request.use_rag:
+        if request.use_rag and not greeting_only:
             hits = await retrieve(db, user.id, request.message, request.top_k)
             for index, hit in enumerate(hits, start=1):
                 yield sse_event(
@@ -97,21 +101,11 @@ class ChatService:
                 if detect_prompt_injection(hit.content):
                     logger.warning("检索片段命中注入特征 chunk=%s", hit.chunk_id)
 
-        # 笔记与记忆都无依据时直接拒答，避免模型编造
-        if request.use_rag and not hits and not memories:
-            answer = refusal_text()
-            trust = compute_trust(answer, hits, request.use_rag, bool(memories))
-            yield sse_event("token", {"text": answer})
-            yield sse_event("trust", trust)
-            await self._persist(db, conversation, request, answer, [], {"total_tokens": 0}, 0,
-                                trust=trust)
-            yield sse_event(
-                "done",
-                {"conversation_id": conversation.id, "citations": 0, "usage": {"total_tokens": 0}},
-            )
-            return
-
-        messages = self._build_messages(request, hits, persona_prompt, memory_context)
+        # 零命中不再直接拒答：交给模型用通用知识兜底回答，
+        # 由 _build_messages 的提示词强制其声明「笔记里没有相关内容」。
+        messages = self._build_messages(
+            request, hits, persona_prompt, memory_context, greeting_only
+        )
         answer_parts: list[str] = []
         usage: dict[str, int] = {}
 
@@ -185,6 +179,7 @@ class ChatService:
         hits: list,
         persona_prompt: str | None = None,
         memory_context: str | None = None,
+        greeting: bool = False,
     ) -> list[dict[str, str]]:
         """组装系统提示、历史对话与检索上下文"""
         parts = [persona_prompt, SYSTEM_GUARD] if persona_prompt else [SYSTEM_GUARD]
@@ -198,11 +193,19 @@ class ChatService:
                 "本轮没有检索到笔记依据，但存在用户长期记忆。可以基于记忆回答，"
                 "并说明信息来自记忆；不要编造笔记中没有的依据。"
             )
-        else:
-            # 用户主动关闭“仅基于笔记回答”时，明确允许使用通用知识，且不需要标注来源
+        elif greeting:
+            # 问候 / 闲聊无需检索，直接自然回应，避免出现「笔记没有相关内容」的提示
             parts.append(
-                "本轮没有检索到笔记依据，请直接用通用知识回答，"
-                "并在开头说明这是通用知识、不是来自用户笔记；不要标注来源编号。"
+                "本轮是问候或闲聊，无需检索笔记。请自然、简短地回应，"
+                "可顺带说明你能基于用户笔记做检索、总结与问答。"
+                "不要提及检索过程、引用编号或来源。"
+            )
+        else:
+            # 零命中兜底：允许通用知识作答，但必须声明内容不来自用户笔记
+            parts.append(
+                "本轮没有检索到笔记依据。请先用一句话明确说明「你的笔记里没有找到相关内容」，"
+                "然后基于通用知识正常作答，保证内容实用、完整；"
+                "不得虚构引用编号，也不得假装内容来自用户笔记。"
             )
         messages: list[dict[str, str]] = [{"role": "system", "content": "\n\n".join(parts)}]
         for turn in request.history[-20:]:

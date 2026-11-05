@@ -85,7 +85,9 @@
       <WysiwygEditor
         ref="editorRef"
         v-model="editContent"
+        :content-json="editContentJson"
         :note-id="editingNoteId"
+        @update:content-json="(json) => (editContentJson = json as Record<string, any>)"
         @save="handleSave"
         @selection-change="handleSelectionChange"
       />
@@ -276,6 +278,8 @@ const isCreating = ref(false)
 const isEditing = ref(false)
 const editTitle = ref('')
 const editContent = ref('')
+/** TipTap JSON 双轨载荷；旧 markdown 笔记打开编辑器后由编辑器内建升级 */
+const editContentJson = ref<Record<string, any> | null>(null)
 const editCategoryId = ref<number | null>(null)
 /** 标签与提示词模块统一为数组 + 可选可建，避免"逗号分隔字符串"两套心智 */
 const editTags = ref<string[]>([])
@@ -346,7 +350,14 @@ async function autoSave() {
   if (!editTitle.value.trim()) return
   if (!editContent.value.trim()) return
   try {
-    await handleSave(editingNoteId.value, editContent.value)
+    await handleSave(
+      {
+        id: editingNoteId.value,
+        content: editContent.value,
+        content_json: editContentJson.value,
+      },
+      false,
+    )
     markSaved()
   } catch {
     saveStatus.value = 'error'
@@ -549,6 +560,7 @@ function startCreate() {
   editingNoteId.value = undefined
   editTitle.value = ''
   editContent.value = ''
+  editContentJson.value = null
   editCategoryId.value = props.folderId
   editTags.value = []
   // 清空字段会触发 watch → markDirty，等 watch 回调后再复位脏标记
@@ -686,6 +698,15 @@ function startEdit() {
 
   const raw = selectedNote.value.content || ''
   editContent.value = isHtml(raw) ? raw : md.render(raw)
+  // 双轨初始化：json 轨笔记把 TipTap JSON 也注入编辑器；旧 markdown 笔记则不传（编辑器从 HTML 自生成）
+  if (
+    selectedNote.value.content_format === 'json' &&
+    selectedNote.value.content_json
+  ) {
+    editContentJson.value = selectedNote.value.content_json
+  } else {
+    editContentJson.value = null
+  }
   editTags.value = [...(selectedNote.value.tags || [])]
   // 载入内容会触发 watch → markDirty，需等 watch 回调执行后再复位脏标记，避免刚打开就判定未保存
   nextTick(() => {
@@ -724,7 +745,10 @@ function isHtml(str: string): boolean {
   return /<[a-z][\s\S]*>/i.test(str)
 }
 
-async function handleSave(noteId: number | undefined, content: string, showToast?: boolean) {
+async function handleSave(
+  payload: { id?: number; content: string; content_json: unknown | null },
+  showToast?: boolean,
+) {
   if (!editTitle.value.trim()) {
     ElMessage.warning('请输入标题')
     return
@@ -734,18 +758,19 @@ async function handleSave(noteId: number | undefined, content: string, showToast
 
   const data = {
     title: editTitle.value.trim(),
-    content,
+    content: payload.content,
+    content_json: payload.content_json as Record<string, any> | null | undefined,
     category_id: editCategoryId.value,
     tags,
   }
 
   saveStatus.value = 'saving'
   try {
-    if (noteId) {
-      const updated = await notesStore.updateNote(noteId, data)
-      editingNoteId.value = noteId
+    if (payload.id) {
+      const updated = await notesStore.updateNote(payload.id, data)
+      editingNoteId.value = payload.id
       // 同步更新 selectedNote，退出编辑后阅读模式显示最新内容
-      if (selectedNote.value?.id === noteId) {
+      if (selectedNote.value?.id === payload.id) {
         selectedNote.value = updated
       }
     } else {

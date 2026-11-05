@@ -2,7 +2,8 @@
 
 NOTE_FIELDS = {"id", "title", "content_preview", "category_id", "category_name",
                "tags", "is_pinned", "visibility", "created_at", "updated_at"}
-DETAIL_FIELDS = {"id", "title", "content", "category_id", "category_name",
+DETAIL_FIELDS = {"id", "title", "content", "content_format", "content_json",
+                 "category_id", "category_name",
                  "tags", "is_pinned", "visibility", "source_username",
                  "created_at", "updated_at"}
 
@@ -116,3 +117,83 @@ def test_user_isolation(client, auth):
     bob = register_user(client, "bob2")
     resp = client.get(f"/api/notes/{created['id']}", headers=bob)
     assert resp.status_code == 404
+
+
+# ── 存储双轨（content_format / content_json）──
+
+BLOCK_JSON = {
+    "type": "doc",
+    "content": [
+        {"type": "heading", "attrs": {"level": 1}},
+        {"type": "paragraph", "attrs": {}, "content": [{"type": "text", "text": "块内容"}]},
+    ],
+}
+
+
+def test_create_note_json_track_fills_block_ids(client, auth):
+    """JSON 轨创建：content_format=json、顶层块自动补稳定 id、HTML 快照保留在 content"""
+    resp = client.post(
+        "/api/notes",
+        json={"title": "块笔记", "content": "<h1>标题</h1><p>块内容</p>",
+              "content_json": BLOCK_JSON, "tags": []},
+        headers=auth,
+    )
+    data = resp.json()["data"]
+    assert data["content_format"] == "json"
+    assert data["content"] == "<h1>标题</h1><p>块内容</p>"
+    blocks = data["content_json"]["content"]
+    assert all(b["attrs"].get("id") for b in blocks)  # 顶层块均有 id
+    # 已有 id 保留、缺失 id 补齐后不被重写
+    fid = blocks[0]["attrs"]["id"]
+    again = client.get(f"/api/notes/{data['id']}", headers=auth).json()["data"]
+    assert again["content_json"]["content"][0]["attrs"]["id"] == fid
+
+
+def test_create_note_markdown_track_backward_compatible(client, auth):
+    """不传 content_json 时保持 markdown 单轨（旧客户端 / MD 导入零回归）"""
+    created = _create_note(client, auth, content="# 标题\n正文")
+    assert created["content_format"] == "markdown"
+    assert created["content_json"] is None
+    assert created["content"] == "# 标题\n正文"
+
+
+def test_update_note_switch_to_json_track(client, auth):
+    """旧 markdown 笔记经块编辑器保存后升级为 json 轨，content 同步为 HTML 快照"""
+    created = _create_note(client, auth, content="旧 markdown")
+    nid = created["id"]
+    updated = client.put(
+        f"/api/notes/{nid}",
+        json={"content": "<p>新块内容</p>", "content_json": BLOCK_JSON},
+        headers=auth,
+    )
+    data = updated.json()["data"]
+    assert data["content_format"] == "json"
+    assert data["content"] == "<p>新块内容</p>"
+
+
+def test_update_note_partial_fields_keep_json_track(client, auth):
+    """只改标题 / 置顶等字段时，双轨字段保持不变（exclude_unset 语义）"""
+    created = client.post(
+        "/api/notes",
+        json={"title": "T", "content": "<p>x</p>", "content_json": BLOCK_JSON, "tags": []},
+        headers=auth,
+    ).json()["data"]
+    updated = client.put(
+        f"/api/notes/{created['id']}", json={"title": "T2"}, headers=auth
+    ).json()["data"]
+    assert updated["title"] == "T2"
+    assert updated["content_format"] == "json"
+    assert updated["content_json"]["content"][0]["type"] == "heading"
+
+
+def test_json_track_preview_and_search_fall_back_to_content(client, auth):
+    """json 轨笔记的列表预览与搜索走 content HTML 快照，不受双轨影响"""
+    client.post(
+        "/api/notes",
+        json={"title": "检索", "content": "<p>独特检索词qwerty</p>", "content_json": BLOCK_JSON, "tags": []},
+        headers=auth,
+    )
+    listing = client.get("/api/notes", headers=auth).json()["data"]["items"][0]
+    assert "独特检索词qwerty" in listing["content_preview"]
+    found = client.get("/api/notes", params={"search": "qwerty"}, headers=auth)
+    assert found.json()["data"]["total"] == 1

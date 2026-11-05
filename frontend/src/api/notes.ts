@@ -5,6 +5,8 @@ export interface Note {
   title: string
   content_preview?: string
   content?: string
+  content_format?: 'markdown' | 'json'
+  content_json?: Record<string, any> | null
   category_id: number | null
   category_name: string | null
   tags: string[]
@@ -18,6 +20,7 @@ export interface Note {
 export interface NoteCreate {
   title: string
   content?: string
+  content_json?: Record<string, any> | null
   category_id?: number | null
   tags?: string[]
 }
@@ -25,6 +28,7 @@ export interface NoteCreate {
 export interface NoteUpdate {
   title?: string
   content?: string
+  content_json?: Record<string, any> | null
   category_id?: number | null
   tags?: string[]
 }

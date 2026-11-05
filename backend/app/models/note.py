@@ -24,7 +24,18 @@ class Note(Base):
         String(255), nullable=False, comment="笔记标题"
     )
     content: Mapped[str | None] = mapped_column(
-        Text, nullable=True, comment="笔记正文（Markdown）"
+        Text, nullable=True, comment="笔记正文（Markdown 或 HTML 快照）"
+    )
+    # ── 存储双轨（块编辑器地基）──
+    # content_format='markdown'：content 为权威（旧数据 / MD 导入）
+    # content_format='json'：content_json 为权威，content 退化为 HTML 快照（供搜索 / 预览 / 阅读兜底）
+    content_format: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="markdown", default="markdown",
+        comment="正文存储格式：markdown=Markdown 原文 / json=块编辑器 JSON",
+    )
+    # 注意：MySQL 5.7 TEXT 列不允许 DEFAULT，由应用层填充
+    content_json: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="块编辑器 JSON 正文（content_format=json 时为权威）"
     )
     category_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, comment="所属分类 ID（分类删除后置空）"
