@@ -26,8 +26,8 @@ from app.services.ai.retrieval import retrieve
 from app.services.ai.safety import (
     SYSTEM_GUARD,
     detect_prompt_injection,
+    is_short_greeting,
     mask_pii,
-    refusal_text,
     wrap_untrusted_context,
 )
 from app.services.ai.sse import sse_event
@@ -79,8 +79,12 @@ class ChatService:
         memories = await self.memory_service.retrieve(db, user.id, request.message)
         memory_context = build_memory_context(memories)
 
+        # 问候 / 闲聊 / 短致谢不走 RAG 检索，避免零命中触发拒答。
+        # 这类消息即使检索也是空结果，直接用通用知识回答即可。
+        greeting_only = is_short_greeting(request.message)
+
         hits = []
-        if request.use_rag:
+        if request.use_rag and not greeting_only:
             hits = await retrieve(db, user.id, request.message, request.top_k)
             for index, hit in enumerate(hits, start=1):
                 yield sse_event(
@@ -97,21 +101,11 @@ class ChatService:
                 if detect_prompt_injection(hit.content):
                     logger.warning("检索片段命中注入特征 chunk=%s", hit.chunk_id)
 
-        # 笔记与记忆都无依据时直接拒答，避免模型编造
-        if request.use_rag and not hits and not memories:
-            answer = refusal_text()
-            trust = compute_trust(answer, hits, request.use_rag, bool(memories))
-            yield sse_event("token", {"text": answer})
-            yield sse_event("trust", trust)
-            await self._persist(db, conversation, request, answer, [], {"total_tokens": 0}, 0,
-                                trust=trust)
-            yield sse_event(
-                "done",
-                {"conversation_id": conversation.id, "citations": 0, "usage": {"total_tokens": 0}},
-            )
-            return
-
-        messages = self._build_messages(request, hits, persona_prompt, memory_context)
+        # 零命中不再直接拒答：交给模型用通用知识兜底回答，
+        # 由 _build_messages 的提示词强制其声明「笔记里没有相关内容」。
+        messages = self._build_messages(
+            request, hits, persona_prompt, memory_context, greeting_only
+        )
         answer_parts: list[str] = []
         usage: dict[str, int] = {}
 

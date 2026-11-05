@@ -65,16 +65,6 @@ def has_citation(answer: str) -> bool:
     return bool(re.search(r"\[\d+\]", answer or ""))
 
 
-def refusal_text() -> str:
-    """无检索依据时的兜底回复"""
-    return (
-        "你的笔记里没有找到能回答这个问题的内容。可以试试：\n"
-        "1. 补充相关笔记；\n"
-        "2. 点右上角「让 AI 重新读取笔记」，让它把已有笔记读完；\n"
-        "3. 关闭「仅基于笔记回答」，改用通用知识作答。"
-    )
-
-
 # 问候 / 闲聊 / 极短致谢的正则。
 # 特征：短句（≤ 12 字或 ≤ 6 个中文字），且命中常见招呼词。
 _GREETING_WORDS = re.compile(
