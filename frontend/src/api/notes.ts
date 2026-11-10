@@ -12,6 +12,8 @@ export interface Note {
   tags: string[]
   is_pinned: boolean
   visibility?: 'private' | 'public'
+  team_id?: number | null
+  owner_username?: string | null
   source_username?: string | null
   created_at: string
   updated_at: string
@@ -23,6 +25,8 @@ export interface NoteCreate {
   content_json?: Record<string, any> | null
   category_id?: number | null
   tags?: string[]
+  /** 为空写个人空间，有值写入对应团队空间 */
+  team_id?: number | null
 }
 
 export interface NoteUpdate {
@@ -31,6 +35,7 @@ export interface NoteUpdate {
   content_json?: Record<string, any> | null
   category_id?: number | null
   tags?: string[]
+  team_id?: number | null
 }
 
 export interface NoteListResponse {
@@ -47,6 +52,8 @@ export interface NoteListParams {
   category_id?: number
   tag?: string
   is_pinned?: boolean
+  /** 团队 ID：传值时查询该团队共享笔记 */
+  team_id?: number
 }
 
 export const notesApi = {
