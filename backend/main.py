@@ -7,15 +7,15 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import HTTPException, RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.database import engine, Base
-from app.core.response import error_response, APIError
+from app.core.database import Base, engine
 from app.core.errors import ErrorCode
-from app.routers import auth, notes, prompts, categories, stats, plaza, ai, agent, roi, search
+from app.core.response import APIError, error_response
+from app.routers import agent, ai, auth, categories, notes, plaza, prompts, roi, search, stats
 from app.services.ai.proactive_scheduler import scheduler_loop
 
 logger = logging.getLogger(__name__)
@@ -156,6 +156,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     全局异常处理器
     捕获所有未处理的异常，返回统一格式
     """
+    # 未处理异常默认不会出现在日志里，补一条带堆栈的记录便于线上定位问题
+    logger.exception("未捕获异常：%s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=ErrorCode.INTERNAL_ERROR,
         content=error_response(
