@@ -5,7 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user, get_db
 from app.core.response import orm_to_dict, success_response
 from app.models.user import User
-from app.schemas.plaza import ContentType, PlazaActionRequest, PlazaDetailResponse, PlazaItemResponse
+from app.schemas.plaza import (
+    ContentType,
+    PlazaActionRequest,
+    PlazaDetailResponse,
+    PlazaItemResponse,
+)
 from app.services.plaza_reaction_service import reaction_service
 from app.services.plaza_service import PlazaService
 

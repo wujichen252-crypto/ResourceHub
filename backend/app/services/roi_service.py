@@ -14,9 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.ai import (
-    AIUsageLog,
-    AIMessage,
     AIConversation,
+    AIMessage,
+    AIUsageLog,
     NoteChunk,
     PromptEvalResult,
     PromptEvalSuite,
@@ -240,7 +240,7 @@ class RoiService:
                     Note.id.in_(note_ids),
                 )
             )).all()
-            titles = {nid: title for nid, title in note_rows}
+            titles = dict(note_rows)
 
         items: list[dict] = []
         for nid in note_ids:
@@ -346,7 +346,7 @@ class RoiService:
                     Prompt.id.in_(prompt_ids),
                 )
             )).all()
-            titles = {pid: title for pid, title in prompt_rows}
+            titles = dict(prompt_rows)
 
         items: list[dict] = []
         for pid in prompt_ids:

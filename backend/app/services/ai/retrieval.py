@@ -93,7 +93,8 @@ def _cosine(left: list[float], right: list[float]) -> float:
     """余弦相似度，向量维度不一致时视为无效"""
     if not left or not right or len(left) != len(right):
         return 0.0
-    dot = sum(a * b for a, b in zip(left, right))
+    # 上文已校验长度一致，strict=True 仅用于显式表达该前提
+    dot = sum(a * b for a, b in zip(left, right, strict=True))
     norm_left = math.sqrt(sum(a * a for a in left))
     norm_right = math.sqrt(sum(b * b for b in right))
     if norm_left == 0 or norm_right == 0:

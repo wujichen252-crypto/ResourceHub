@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_current_user, get_db
 from app.core.response import orm_to_dict, success_response
 from app.models.user import User
 from app.schemas.note import NoteCreate, NoteDetailResponse, NoteListResponse, NoteUpdate

@@ -29,3 +29,26 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q"
+
+[tool.ruff]
+# 与 requires-python 对齐，避免建议不兼容的语法
+target-version = "py310"
+line-length = 100
+# 迁移脚本由 Alembic 生成，不纳入风格检查
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+# E/W 常规错误、F 逻辑错误、I 导入排序、B 潜在缺陷、UP 语法升级、C4 推导式优化
+select = ["E", "W", "F", "I", "B", "UP", "C4"]
+# 行宽由 formatter 处理，交给 E501 会与长 URL 等场景冲突
+# B008：FastAPI 以 Depends()/Query() 作默认参数是官方范式，非缺陷
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.lint.per-file-ignores]
+# 测试需先设置环境变量再导入应用，导入语句必须在模块中部，E402 属预期
+# 用例中的 register_user 等有时仅作为夹具依赖被间接使用
+"tests/*" = ["E402", "F401"]
+

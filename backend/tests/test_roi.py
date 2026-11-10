@@ -3,14 +3,13 @@
 import asyncio
 import json
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
-from sqlalchemy import select
 
 from app.core.config import settings
 from app.models.ai import AIConversation, AIMessage, AIUsageLog, NoteChunk
 from app.models.user import User
-
 
 PRICES = json.dumps({"m1": {"input": 0.001, "output": 0.002}})
 
@@ -64,7 +63,12 @@ def _seed_prompt_data(db_url: str, prompt_id: int):
     """提示词级数据：评测得分 + 已完成优化会话（提分）"""
 
     async def _run() -> None:
-        from app.models.ai import PromptEvalCase, PromptEvalResult, PromptEvalSuite, PromptOptimizationRun
+        from app.models.ai import (
+            PromptEvalCase,
+            PromptEvalResult,
+            PromptEvalSuite,
+            PromptOptimizationRun,
+        )
 
         engine = create_async_engine(db_url, poolclass=NullPool)
         factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

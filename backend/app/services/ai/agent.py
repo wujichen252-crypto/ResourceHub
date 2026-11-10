@@ -21,9 +21,9 @@ from app.core.errors import ErrorCode
 from app.models.ai import AIRun
 from app.models.user import User
 from app.schemas.ai import AgentResumeRequest, AgentRunRequest
-from app.services.ai.provider import AIProviderError, get_chat_provider
 from app.services.ai.memory_service import MemoryService, build_memory_context
 from app.services.ai.persona_service import PersonaService, build_persona_prompt
+from app.services.ai.provider import AIProviderError, get_chat_provider
 from app.services.ai.sse import sse_event
 from app.services.ai.tools import TOOL_REGISTRY, ToolContext
 from app.services.ai.usage import ensure_quota, record_usage
