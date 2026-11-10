@@ -3,6 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta
 
+from conftest import register_user
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -13,7 +14,6 @@ from app.models.agent import AgentMemory, AgentProactiveMessage
 from app.models.note import Note
 from app.models.user import User
 from app.services.ai.proactive_service import ProactiveService
-from conftest import register_user
 
 
 def _create_note(client, auth, title: str = "Vue 3 响应式原理") -> int:

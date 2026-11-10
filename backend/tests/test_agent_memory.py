@@ -2,6 +2,7 @@
 
 import asyncio
 
+from conftest import register_user
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -16,7 +17,6 @@ from app.services.ai.memory_service import (
     build_memory_context,
 )
 from app.services.ai.provider import AIProviderError, ChatResult
-from conftest import register_user
 
 
 class FakeProvider:
