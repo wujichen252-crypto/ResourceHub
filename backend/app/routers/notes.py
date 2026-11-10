@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
@@ -15,16 +16,24 @@ service = NoteService()
 category_service = CategoryService()
 
 
-def _note_list_out(note, category_name: str | None = None) -> dict:
+def _note_list_out(note, category_name: str | None = None, owner_username: str | None = None) -> dict:
     return NoteListResponse.model_validate(
-        {**orm_to_dict(note), "category_name": category_name}
+        {**orm_to_dict(note), "category_name": category_name, "owner_username": owner_username}
     ).model_dump()
 
 
-def _note_detail_out(note, category_name: str | None = None) -> dict:
+def _note_detail_out(note, category_name: str | None = None, owner_username: str | None = None) -> dict:
     return NoteDetailResponse.model_validate(
-        {**orm_to_dict(note), "category_name": category_name}
+        {**orm_to_dict(note), "category_name": category_name, "owner_username": owner_username}
     ).model_dump()
+
+
+async def _owner_name_map(db: AsyncSession, user_ids: set[int]) -> dict[int, str]:
+    """批量查询作者用户名，供团队空间列表展示，避免逐条查询"""
+    if not user_ids:
+        return {}
+    result = await db.execute(select(User.id, User.username).where(User.id.in_(user_ids)))
+    return dict(result.all())
 
 
 async def _single_category_name(db: AsyncSession, category_id: int | None) -> str | None:
@@ -42,17 +51,26 @@ async def list_notes(
     category_id: int | None = None,
     tag: str | None = None,
     is_pinned: bool | None = None,
+    team_id: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     notes, total = await service.get_notes(
-        db, current_user.id, page, page_size, search, category_id, tag, is_pinned
+        db, current_user.id, page, page_size, search, category_id, tag, is_pinned, team_id
     )
     # 一次批量查询分类名，避免逐条 get 造成 N+1
     names = await category_service.get_name_map(
         db, {n.category_id for n in notes if n.category_id is not None}
     )
-    items = [_note_list_out(n, names.get(n.category_id)) for n in notes]
+    # 团队空间展示作者，个人空间无需额外查询
+    owners = (
+        await _owner_name_map(db, {n.user_id for n in notes})
+        if team_id is not None
+        else {}
+    )
+    items = [
+        _note_list_out(n, names.get(n.category_id), owners.get(n.user_id)) for n in notes
+    ]
 
     return success_response(
         data={
@@ -72,8 +90,15 @@ async def get_note(
     current_user: User = Depends(get_current_user),
 ):
     note = await service.get_note(db, note_id, current_user.id)
+    owners = (
+        await _owner_name_map(db, {note.user_id}) if note.team_id is not None else {}
+    )
     return success_response(
-        data=_note_detail_out(note, await _single_category_name(db, note.category_id)),
+        data=_note_detail_out(
+            note,
+            await _single_category_name(db, note.category_id),
+            owners.get(note.user_id),
+        ),
         msg="获取笔记详情成功",
     )
 

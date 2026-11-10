@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
@@ -25,16 +26,24 @@ analytics_service = PromptAnalyticsService()
 category_service = CategoryService()
 
 
-def _prompt_list_out(prompt, category_name: str | None = None) -> dict:
+def _prompt_list_out(prompt, category_name: str | None = None, owner_username: str | None = None) -> dict:
     return PromptListResponse.model_validate(
-        {**orm_to_dict(prompt), "category_name": category_name}
+        {**orm_to_dict(prompt), "category_name": category_name, "owner_username": owner_username}
     ).model_dump()
 
 
-def _prompt_detail_out(prompt, category_name: str | None = None) -> dict:
+def _prompt_detail_out(prompt, category_name: str | None = None, owner_username: str | None = None) -> dict:
     return PromptDetailResponse.model_validate(
-        {**orm_to_dict(prompt), "category_name": category_name}
+        {**orm_to_dict(prompt), "category_name": category_name, "owner_username": owner_username}
     ).model_dump()
+
+
+async def _owner_name_map(db: AsyncSession, user_ids: set[int]) -> dict[int, str]:
+    """批量查询作者用户名，供团队空间列表展示"""
+    if not user_ids:
+        return {}
+    result = await db.execute(select(User.id, User.username).where(User.id.in_(user_ids)))
+    return dict(result.all())
 
 
 def _version_out(version) -> dict:
@@ -61,18 +70,26 @@ async def list_prompts(
     search: str | None = None,
     sort_by: str = "created_at",
     tag: str | None = None,
+    team_id: int | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     prompts, total = await service.get_prompts(
         db, current_user.id, page, page_size,
-        category_id, is_favorite, search, sort_by, tag,
+        category_id, is_favorite, search, sort_by, tag, team_id,
     )
     # 一次批量查询分类名，避免逐条 get 造成 N+1
     names = await category_service.get_name_map(
         db, {p.category_id for p in prompts if p.category_id is not None}
     )
-    items = [_prompt_list_out(p, names.get(p.category_id)) for p in prompts]
+    owners = (
+        await _owner_name_map(db, {p.user_id for p in prompts})
+        if team_id is not None
+        else {}
+    )
+    items = [
+        _prompt_list_out(p, names.get(p.category_id), owners.get(p.user_id)) for p in prompts
+    ]
 
     return success_response(
         data={
@@ -104,8 +121,17 @@ async def get_prompt(
     current_user: User = Depends(get_current_user),
 ):
     prompt = await service.get_prompt(db, prompt_id, current_user.id)
+    owners = (
+        await _owner_name_map(db, {prompt.user_id})
+        if prompt.team_id is not None
+        else {}
+    )
     return success_response(
-        data=_prompt_detail_out(prompt, await _single_category_name(db, prompt.category_id)),
+        data=_prompt_detail_out(
+            prompt,
+            await _single_category_name(db, prompt.category_id),
+            owners.get(prompt.user_id),
+        ),
         msg="获取提示词详情成功",
     )
 

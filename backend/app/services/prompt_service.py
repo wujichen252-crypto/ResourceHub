@@ -9,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ErrorCode
 from app.models.prompt import Prompt, PromptPreset, PromptUsageLog, PromptVersion
 from app.schemas.prompt import PromptCreate, PromptUpdate, RenderResponse
+from app.services.team_service import TeamService
+
+team_service = TeamService()
 
 
 def render_template(template: str, variables: dict[str, str]) -> str:
@@ -29,8 +32,19 @@ class PromptService:
         search: str | None = None,
         sort_by: str = "created_at",
         tag: str | None = None,
+        team_id: int | None = None,
     ):
-        query = select(Prompt).where(Prompt.user_id == user_id)
+        """列表查询：team_id 为空查个人空间，有值查团队空间（需成员身份）"""
+        if team_id is not None:
+            if not await team_service.is_member(db, team_id, user_id):
+                raise HTTPException(
+                    status_code=403,
+                    detail={"code": ErrorCode.TEAM_FORBIDDEN, "message": "仅团队成员可以访问该团队资源"},
+                )
+            query = select(Prompt).where(Prompt.team_id == team_id)
+        else:
+            # 个人空间：排除已归属团队的提示词
+            query = select(Prompt).where(Prompt.user_id == user_id, Prompt.team_id.is_(None))
 
         if category_id is not None:
             query = query.where(Prompt.category_id == category_id)
@@ -59,24 +73,41 @@ class PromptService:
         prompts = result.scalars().all()
         return prompts, total
 
-    async def get_prompt(self, db: AsyncSession, prompt_id: int, user_id: int) -> Prompt:
-        result = await db.execute(
-            select(Prompt).where(Prompt.id == prompt_id, Prompt.user_id == user_id)
-        )
-        prompt = result.scalar_one_or_none()
-        if not prompt:
+    async def get_prompt(
+        self, db: AsyncSession, prompt_id: int, user_id: int, for_write: bool = False
+    ) -> Prompt:
+        """读取提示词：本人 → 团队成员（写操作另需作者或团队管理员身份）"""
+        prompt = await db.scalar(select(Prompt).where(Prompt.id == prompt_id))
+        if prompt is None:
             raise HTTPException(status_code=404, detail={"code": ErrorCode.PROMPT_NOT_FOUND, "message": "提示词不存在"})
-        return prompt
+        if prompt.user_id == user_id:
+            return prompt
+        if prompt.team_id is not None:
+            if for_write:
+                if await team_service.can_manage(db, prompt.team_id, user_id):
+                    return prompt
+                if await team_service.is_member(db, prompt.team_id, user_id):
+                    raise HTTPException(
+                        status_code=403,
+                        detail={"code": ErrorCode.TEAM_FORBIDDEN, "message": "只有作者或团队管理员可以修改该提示词"},
+                    )
+            elif await team_service.is_member(db, prompt.team_id, user_id):
+                return prompt
+        # 非本人且非团队成员：按不存在处理，避免泄露资源是否存在
+        raise HTTPException(status_code=404, detail={"code": ErrorCode.PROMPT_NOT_FOUND, "message": "提示词不存在"})
 
     async def create_prompt(
         self, db: AsyncSession, user_id: int, data: PromptCreate
     ) -> Prompt:
+        await team_service.assert_can_write_team_resource(db, data.team_id, user_id)
         prompt = Prompt(
             user_id=user_id,
+            team_id=data.team_id,
             title=data.title,
             description=data.description,
             content=data.content,
-            category_id=data.category_id,
+            # 团队空间不使用个人分类树
+            category_id=None if data.team_id is not None else data.category_id,
             variables=json.dumps(data.variables, ensure_ascii=False) if data.variables else None,
             tags=json.dumps(data.tags, ensure_ascii=False) if data.tags else None,
         )
@@ -91,9 +122,22 @@ class PromptService:
     async def update_prompt(
         self, db: AsyncSession, prompt_id: int, user_id: int, data: PromptUpdate
     ) -> Prompt:
-        prompt = await self.get_prompt(db, prompt_id, user_id)
+        prompt = await self.get_prompt(db, prompt_id, user_id, for_write=True)
         update_data = data.model_dump(exclude_unset=True)
         msg = update_data.pop("message", None)  # 提取 message，不写入 prompt 本身
+        # 资源归属变更（个人 ↔ 团队）只允许作者本人操作
+        if "team_id" in update_data and update_data["team_id"] != prompt.team_id:
+            if prompt.user_id != user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail={"code": ErrorCode.TEAM_FORBIDDEN, "message": "只有作者可以调整资源归属"},
+                )
+            await team_service.assert_can_write_team_resource(db, update_data["team_id"], user_id)
+            if update_data["team_id"] is not None:
+                update_data["category_id"] = None
+        # 团队资源始终不挂个人分类
+        if prompt.team_id is not None and "category_id" in update_data:
+            update_data["category_id"] = None
         # 内容变更时自动快照版本
         content_changed = "content" in update_data and data.content != prompt.content
         if content_changed:
@@ -116,7 +160,7 @@ class PromptService:
         return prompt
 
     async def delete_prompt(self, db: AsyncSession, prompt_id: int, user_id: int) -> None:
-        prompt = await self.get_prompt(db, prompt_id, user_id)
+        prompt = await self.get_prompt(db, prompt_id, user_id, for_write=True)
         await db.delete(prompt)
         await db.commit()
 
@@ -208,7 +252,7 @@ class PromptService:
     async def restore_version(
         self, db: AsyncSession, prompt_id: int, version_id: int, user_id: int
     ) -> Prompt:
-        prompt = await self.get_prompt(db, prompt_id, user_id)
+        prompt = await self.get_prompt(db, prompt_id, user_id, for_write=True)
         version = await self.get_version(db, prompt_id, version_id, user_id)
         # 先快照当前状态（防止误操作丢数据）
         await self._create_version_snapshot(db, prompt)
@@ -272,6 +316,8 @@ class PromptService:
     async def update_labels(
         self, db: AsyncSession, prompt_id: int, version_id: int, user_id: int, labels: list[str]
     ) -> PromptVersion:
+        # 标签属于版本元数据，写操作需作者或团队管理员身份
+        await self.get_prompt(db, prompt_id, user_id, for_write=True)
         version = await self.get_version(db, prompt_id, version_id, user_id)
         version.labels = json.dumps(labels, ensure_ascii=False) if labels else None
         await db.commit()

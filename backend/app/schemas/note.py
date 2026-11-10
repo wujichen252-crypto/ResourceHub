@@ -14,6 +14,8 @@ class NoteCreate(BaseModel):
     content_json: dict[str, Any] | None = None
     category_id: int | None = None
     tags: list[str] | None = None
+    # 团队知识库：为空写个人空间，有值写入对应团队空间
+    team_id: int | None = None
 
 
 class NoteUpdate(BaseModel):
@@ -23,6 +25,7 @@ class NoteUpdate(BaseModel):
     content_json: dict[str, Any] | None = None
     category_id: int | None = None
     tags: list[str] | None = None
+    team_id: int | None = None
 
 
 class NoteListResponse(BaseModel):
@@ -35,6 +38,8 @@ class NoteListResponse(BaseModel):
     tags: JsonList
     is_pinned: bool
     visibility: str = "private"
+    team_id: int | None = None
+    owner_username: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -68,6 +73,8 @@ class NoteDetailResponse(BaseModel):
     tags: JsonList
     is_pinned: bool
     visibility: str = "private"
+    team_id: int | None = None
+    owner_username: str | None = None
     source_username: str | None = None
     created_at: datetime
     updated_at: datetime
