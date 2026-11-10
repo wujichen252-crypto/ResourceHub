@@ -15,7 +15,19 @@ from app.core.config import settings
 from app.core.database import Base, engine
 from app.core.errors import ErrorCode
 from app.core.response import APIError, error_response
-from app.routers import agent, ai, auth, categories, notes, plaza, prompts, roi, search, stats
+from app.routers import (
+    agent,
+    ai,
+    auth,
+    categories,
+    notes,
+    plaza,
+    prompts,
+    roi,
+    search,
+    stats,
+    teams,
+)
 from app.services.ai.proactive_scheduler import scheduler_loop
 
 logger = logging.getLogger(__name__)
@@ -31,7 +43,7 @@ async def lifespan(app: FastAPI):
             # Python 3.10 无 asyncio.timeout（3.11+ 才有），改用 wait_for 兼容
             async def _create_tables():
                 async with engine.begin() as conn:
-                    from app.models import user, note, prompt, category, ai  # noqa
+                    from app.models import user, note, prompt, category, ai, team  # noqa
                     await conn.run_sync(Base.metadata.create_all)
 
             await asyncio.wait_for(_create_tables(), timeout=8)
@@ -78,6 +90,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(notes.router, prefix="/api/notes", tags=["笔记"])
 app.include_router(prompts.router, prefix="/api/prompts", tags=["提示词"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
+app.include_router(teams.router, prefix="/api/teams", tags=["团队空间"])
 app.include_router(search.router, prefix="/api/search", tags=["全局搜索"])
 app.include_router(stats.router, prefix="/api/stats", tags=["统计"])
 app.include_router(roi.router, prefix="/api/roi", tags=["ROI 看板"])
