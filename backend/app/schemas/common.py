@@ -6,10 +6,9 @@
 """
 import json
 import re
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BeforeValidator
-from typing_extensions import Annotated
 
 
 def decode_json_list(value: Any) -> list:

@@ -1,15 +1,14 @@
+import difflib
 import json
 import re
-from sqlalchemy import select, func, or_
+
+from fastapi import HTTPException
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
 
 from app.core.errors import ErrorCode
-from app.models.prompt import Prompt, PromptVersion, PromptPreset, PromptUsageLog
-import difflib
-from app.schemas.prompt import (
-    PromptCreate, PromptUpdate, RenderResponse
-)
+from app.models.prompt import Prompt, PromptPreset, PromptUsageLog, PromptVersion
+from app.schemas.prompt import PromptCreate, PromptUpdate, RenderResponse
 
 
 def render_template(template: str, variables: dict[str, str]) -> str:
@@ -181,7 +180,8 @@ class PromptService:
     async def get_versions(
         self, db: AsyncSession, prompt_id: int, user_id: int
     ) -> list[PromptVersion]:
-        prompt = await self.get_prompt(db, prompt_id, user_id)
+        # 先做存在性与归属校验（不存在或无权限时会抛出 404/403）
+        await self.get_prompt(db, prompt_id, user_id)
         result = await db.execute(
             select(PromptVersion)
             .where(PromptVersion.prompt_id == prompt_id)
@@ -192,7 +192,8 @@ class PromptService:
     async def get_version(
         self, db: AsyncSession, prompt_id: int, version_id: int, user_id: int
     ) -> PromptVersion:
-        prompt = await self.get_prompt(db, prompt_id, user_id)
+        # 先做存在性与归属校验（不存在或无权限时会抛出 404/403）
+        await self.get_prompt(db, prompt_id, user_id)
         result = await db.execute(
             select(PromptVersion).where(
                 PromptVersion.id == version_id,

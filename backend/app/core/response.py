@@ -5,7 +5,6 @@
 
 from typing import Any
 
-from fastapi.responses import JSONResponse
 from sqlalchemy import inspect
 from sqlalchemy.orm import DeclarativeBase
 

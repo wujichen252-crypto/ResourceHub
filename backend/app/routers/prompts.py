@@ -1,23 +1,23 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_db, get_current_user
+from app.core.deps import get_current_user, get_db
 from app.core.response import orm_to_dict, success_response
 from app.models.user import User
 from app.schemas.prompt import (
+    LabelUpdateRequest,
+    PresetCreate,
+    PresetResponse,
     PromptCreate,
     PromptDetailResponse,
     PromptListResponse,
     PromptUpdate,
     PromptVersionResponse,
-    PresetCreate,
-    PresetResponse,
     RenderRequest,
-    LabelUpdateRequest,
 )
 from app.services.category_service import CategoryService
-from app.services.prompt_service import PromptService
 from app.services.prompt_analytics_service import PromptAnalyticsService
+from app.services.prompt_service import PromptService
 
 router = APIRouter(tags=["提示词"])
 service = PromptService()
