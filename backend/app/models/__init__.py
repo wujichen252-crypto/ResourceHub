@@ -12,15 +12,18 @@ from .ai import (
 )
 from .agent import AgentMemory, AgentProactiveMessage, AgentProfile
 from .user import User
+from .password_reset import PasswordResetToken
 from .category import Category
-from .note import Note
+from .note import Note, NoteTemplate
 from .note_reaction import NoteFavorite, NoteLike
 from .prompt import Prompt, PromptVersion, PromptPreset, PromptUsageLog
 
 __all__ = [
     "User",
+    "PasswordResetToken",
     "Category",
     "Note",
+    "NoteTemplate",
     "NoteLike",
     "NoteFavorite",
     "Prompt",

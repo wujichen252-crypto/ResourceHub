@@ -10,13 +10,19 @@ from app.schemas.auth import (
     RefreshRequest,
     TokenResponse,
     UserResponse,
-    ForgotPasswordRequest,
+    PasswordResetCodeRequest,
+    PasswordResetConfirmRequest,
     ChangePasswordRequest,
 )
 from app.services.auth_service import AuthService
+from app.services.password_reset_service import (
+    PasswordResetService,
+    RESET_CODE_SENT_MESSAGE,
+)
 
 router = APIRouter(tags=["认证"])
 service = AuthService()
+reset_service = PasswordResetService()
 
 
 @router.post("/register", status_code=201)
@@ -55,16 +61,22 @@ async def get_me(current_user: User = Depends(get_current_user)):
     )
 
 
-@router.post("/forgot-password")
-async def forgot_password(
-    data: ForgotPasswordRequest,
+@router.post("/password-reset/request")
+async def request_password_reset_code(
+    data: PasswordResetCodeRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    user = await service.forgot_password(db, data)
-    return success_response(
-        data=UserResponse.model_validate(user).model_dump(),
-        msg="密码重置成功",
-    )
+    await reset_service.request_code(db, data)
+    return success_response(msg=RESET_CODE_SENT_MESSAGE)
+
+
+@router.post("/password-reset/confirm")
+async def confirm_password_reset(
+    data: PasswordResetConfirmRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    await reset_service.confirm(db, data)
+    return success_response(msg="密码重置成功，请使用新密码登录")
 
 
 @router.put("/change-password")

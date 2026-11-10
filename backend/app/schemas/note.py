@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -22,6 +22,15 @@ class NoteUpdate(BaseModel):
     # 显式传 None 表示切回 markdown 单轨并清空块文档；不传表示保持不变
     content_json: dict[str, Any] | None = None
     category_id: int | None = None
+    tags: list[str] | None = None
+
+
+class NoteBatchRequest(BaseModel):
+    ids: list[int] = Field(..., min_length=1, max_length=200)
+    action: Literal["move", "tag", "delete"]
+    # move：目标目录，null 表示移出目录
+    category_id: int | None = None
+    # tag：追加到现有标签之后（自动去重）
     tags: list[str] | None = None
 
 

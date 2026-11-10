@@ -61,6 +61,21 @@ class Settings(BaseSettings):
     AI_PROACTIVE_TIMEZONE: str = "Asia/Shanghai"
     AI_STALE_GOAL_DAYS: int = 30
 
+    # ── 邮件发送（密码重置验证码；QQ 邮箱默认 SSL 465，授权码而非登录密码）──
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = "smtp.qq.com"
+    SMTP_PORT: int = 465
+    SMTP_USE_SSL: bool = True  # 465 用 SSL；587 改为 False 走 STARTTLS
+    SMTP_USER: str = ""  # 发件邮箱地址
+    SMTP_PASSWORD: str = ""  # 邮箱授权码，不是登录密码
+    SMTP_FROM_NAME: str = "ResourceHub"
+
+    # ── 密码重置策略（防刷：冷却 + 每日上限 + 单码尝试次数）──
+    RESET_CODE_TTL_MINUTES: int = 5
+    RESET_CODE_MAX_ATTEMPTS: int = 5
+    RESET_CODE_RESEND_COOLDOWN_SECONDS: int = 60
+    RESET_CODE_DAILY_LIMIT: int = 10
+
     # ── 全文搜索（Meilisearch 内网服务；关闭时自动降级为 MySQL LIKE）──
     MEILI_ENABLED: bool = False
     MEILI_URL: str = "http://127.0.0.1:7700"
@@ -150,6 +165,13 @@ class Settings(BaseSettings):
     def meili_configured(self) -> bool:
         """是否启用并已配置搜索服务地址"""
         return bool(self.MEILI_ENABLED and self.MEILI_URL)
+
+    @property
+    def smtp_configured(self) -> bool:
+        """是否已启用并配置完整的发件账号"""
+        return bool(
+            self.SMTP_ENABLED and self.SMTP_HOST and self.SMTP_USER and self.SMTP_PASSWORD
+        )
 
 
 settings = Settings()

@@ -31,8 +31,13 @@ class ErrorCode(IntEnum):
     TOKEN_EXPIRED = 1004
     TOKEN_INVALID = 1005
     USER_NOT_FOUND = 1006
-    USERNAME_EMAIL_MISMATCH = 1007
     WRONG_OLD_PASSWORD = 1008
+
+    RESET_CODE_INVALID = 1009
+    RESET_CODE_EXPIRED = 1010
+    RESET_CODE_ATTEMPTS_EXCEEDED = 1011
+    EMAIL_NOT_CONFIGURED = 1012
+    EMAIL_SEND_FAILED = 1013
 
     NOTE_NOT_FOUND = 2001
     CATEGORY_NOT_FOUND = 3001
@@ -72,8 +77,12 @@ ERROR_MESSAGES = {
     ErrorCode.TOKEN_EXPIRED: "Token 已过期",
     ErrorCode.TOKEN_INVALID: "Token 无效",
     ErrorCode.USER_NOT_FOUND: "用户不存在",
-    ErrorCode.USERNAME_EMAIL_MISMATCH: "用户名或邮箱不匹配",
     ErrorCode.WRONG_OLD_PASSWORD: "原密码错误",
+    ErrorCode.RESET_CODE_INVALID: "验证码无效或已过期",
+    ErrorCode.RESET_CODE_EXPIRED: "验证码已过期，请重新获取",
+    ErrorCode.RESET_CODE_ATTEMPTS_EXCEEDED: "验证码错误次数过多，请重新获取",
+    ErrorCode.EMAIL_NOT_CONFIGURED: "邮件服务未配置，暂时无法发送验证码",
+    ErrorCode.EMAIL_SEND_FAILED: "验证码发送失败，请稍后再试",
     ErrorCode.NOTE_NOT_FOUND: "笔记不存在",
     ErrorCode.CATEGORY_NOT_FOUND: "分类不存在",
     ErrorCode.PROMPT_NOT_FOUND: "提示词不存在",
@@ -81,6 +90,7 @@ ERROR_MESSAGES = {
     ErrorCode.PRESET_NOT_FOUND: "预设不存在",
     ErrorCode.PLAZA_ITEM_NOT_FOUND: "广场内容不存在或未发布",
     ErrorCode.INVALID_CONTENT_TYPE: "内容类型无效",
+    ErrorCode.CANNOT_REACT_OWN_NOTE: "不能给自己的笔记点赞或收藏",
     ErrorCode.AI_NOT_CONFIGURED: "AI 功能还没有启用，请在项目配置文件中填写 AI 服务密钥后再试",
     ErrorCode.AI_PROVIDER_ERROR: "AI 服务暂时不可用，请稍后再试",
     ErrorCode.AI_QUOTA_EXCEEDED: "今天的 AI 使用次数已用完，请明天再试",

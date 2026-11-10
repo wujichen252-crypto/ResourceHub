@@ -118,6 +118,9 @@ function renderSlashMenu() {
           items: ALL_ITEMS,
           query: props.query,
           position: null,
+          // 选中回调交给菜单直接调用：Suggestion 的 command 会走扩展配置里的
+          // command → item.command({ editor, range })，range 由各 item 自行删除
+          command: props.command,
         },
         editor: props.editor,
       })
@@ -131,6 +134,7 @@ function renderSlashMenu() {
       component?.updateProps({
         query: props.query,
         items: ALL_ITEMS,
+        command: props.command,
       })
     },
 

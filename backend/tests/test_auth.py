@@ -73,19 +73,6 @@ def test_refresh_flow(client):
     assert me.status_code == 200
 
 
-def test_forgot_password_mismatch_400(client):
-    client.post(
-        "/api/auth/register",
-        json={"username": "frank", "password": "password123", "email": "frank@example.com"},
-    )
-    resp = client.post(
-        "/api/auth/forgot-password",
-        json={"username": "frank", "email": "wrong@example.com", "new_password": "newpassword1"},
-    )
-    assert resp.status_code == 400
-    assert resp.json()["msg"] == "用户名或邮箱不匹配"
-
-
 def test_change_password_wrong_old_400(client, auth):
     resp = client.put(
         "/api/auth/change-password",

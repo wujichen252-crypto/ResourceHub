@@ -42,8 +42,17 @@ export const authApi = {
     return http.get('/auth/me')
   },
 
-  forgotPassword(data: { username: string; email: string; new_password: string }): Promise<User> {
-    return http.post('/auth/forgot-password', data)
+  requestPasswordResetCode(data: { username: string; email: string }): Promise<void> {
+    return http.post('/auth/password-reset/request', data)
+  },
+
+  confirmPasswordReset(data: {
+    username: string
+    email: string
+    code: string
+    new_password: string
+  }): Promise<void> {
+    return http.post('/auth/password-reset/confirm', data)
   },
 
   changePassword(data: { old_password: string; new_password: string }): Promise<void> {

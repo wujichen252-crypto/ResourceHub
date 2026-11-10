@@ -1,7 +1,8 @@
 from .auth import (
     ChangePasswordRequest,
-    ForgotPasswordRequest,
     LoginRequest,
+    PasswordResetCodeRequest,
+    PasswordResetConfirmRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -35,7 +36,8 @@ __all__ = [
     "TokenResponse",
     "RefreshRequest",
     "UserResponse",
-    "ForgotPasswordRequest",
+    "PasswordResetCodeRequest",
+    "PasswordResetConfirmRequest",
     "ChangePasswordRequest",
     # category
     "CategoryCreate",

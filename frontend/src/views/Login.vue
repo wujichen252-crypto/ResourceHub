@@ -125,7 +125,11 @@
         :close-on-click-modal="false"
         class="forgot-dialog"
       >
-        <el-form label-position="top" @keyup.enter="handleForgotPassword">
+        <el-form
+          v-if="resetStep === 'request'"
+          label-position="top"
+          @keyup.enter="handleSendResetCode"
+        >
           <el-form-item label="用户名">
             <el-input
               v-model="forgotForm.username"
@@ -143,6 +147,29 @@
               placeholder="请输入注册时填写的邮箱"
             />
           </el-form-item>
+          <el-form-item>
+            <el-button type="primary" :loading="forgotLoading" class="submit-btn" @click="handleSendResetCode">
+              {{ forgotLoading ? '发送中...' : '发送验证码' }}
+            </el-button>
+          </el-form-item>
+        </el-form>
+        <el-form v-else label-position="top" @keyup.enter="handleConfirmReset">
+          <p class="reset-hint">
+            验证码已发送至 {{ forgotForm.email }}，5 分钟内有效。没收到？
+            <el-button text size="small" :disabled="resendSeconds > 0" @click="handleSendResetCode">
+              {{ resendSeconds > 0 ? `${resendSeconds}s 后重发` : '重新发送' }}
+            </el-button>
+          </p>
+          <el-form-item label="验证码">
+            <el-input
+              v-model="forgotForm.code"
+              name="one-time-code"
+              autocomplete="one-time-code"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="6 位数字验证码"
+            />
+          </el-form-item>
           <el-form-item label="新密码">
             <el-input
               v-model="forgotForm.newPassword"
@@ -154,9 +181,12 @@
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :loading="forgotLoading" class="submit-btn" @click="handleForgotPassword">
-              {{ forgotLoading ? '提交中...' : '重置密码' }}
-            </el-button>
+            <div class="reset-actions">
+              <el-button text size="small" @click="resetStep = 'request'">返回上一步</el-button>
+              <el-button type="primary" :loading="forgotLoading" class="submit-btn" @click="handleConfirmReset">
+                {{ forgotLoading ? '提交中...' : '重置密码' }}
+              </el-button>
+            </div>
           </el-form-item>
         </el-form>
       </el-dialog>
@@ -165,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -180,12 +210,27 @@ const activeTab = ref('login')
 const loading = ref(false)
 const showForgotDialog = ref(false)
 const forgotLoading = ref(false)
+const resetStep = ref<'request' | 'confirm'>('request')
+const resendSeconds = ref(0)
+let resendTimer: ReturnType<typeof setInterval> | null = null
 
 const forgotForm = reactive({
   username: '',
   email: '',
+  code: '',
   newPassword: '',
 })
+
+watch(showForgotDialog, (open) => {
+  if (!open) {
+    resetStep.value = 'request'
+    forgotForm.code = ''
+    forgotForm.newPassword = ''
+    stopResendCountdown()
+  }
+})
+
+onUnmounted(stopResendCountdown)
 
 const loginFormRef = ref<FormInstance>()
 const registerFormRef = ref<FormInstance>()
@@ -270,9 +315,48 @@ async function handleRegister() {
   }
 }
 
-async function handleForgotPassword() {
-  if (!forgotForm.username.trim() || !forgotForm.email.trim() || !forgotForm.newPassword.trim()) {
-    ElMessage.warning('请填写完整信息')
+function startResendCountdown() {
+  stopResendCountdown()
+  resendSeconds.value = 60
+  resendTimer = setInterval(() => {
+    resendSeconds.value -= 1
+    if (resendSeconds.value <= 0) stopResendCountdown()
+  }, 1000)
+}
+
+function stopResendCountdown() {
+  if (resendTimer) {
+    clearInterval(resendTimer)
+    resendTimer = null
+  }
+  resendSeconds.value = 0
+}
+
+async function handleSendResetCode() {
+  if (!forgotForm.username.trim() || !forgotForm.email.trim()) {
+    ElMessage.warning('请填写用户名和邮箱')
+    return
+  }
+  forgotLoading.value = true
+  try {
+    await authApi.requestPasswordResetCode({
+      username: forgotForm.username.trim(),
+      email: forgotForm.email.trim(),
+    })
+    ElMessage.success('如果该账号存在且已绑定邮箱，验证码已发送')
+    forgotForm.code = ''
+    resetStep.value = 'confirm'
+    startResendCountdown()
+  } catch (err: any) {
+    ElMessage.error(err.response?.data?.msg || '验证码发送失败')
+  } finally {
+    forgotLoading.value = false
+  }
+}
+
+async function handleConfirmReset() {
+  if (!/^\d{6}$/.test(forgotForm.code.trim())) {
+    ElMessage.warning('请输入 6 位数字验证码')
     return
   }
   if (forgotForm.newPassword.length < 8) {
@@ -281,16 +365,16 @@ async function handleForgotPassword() {
   }
   forgotLoading.value = true
   try {
-    await authApi.forgotPassword({
+    await authApi.confirmPasswordReset({
       username: forgotForm.username.trim(),
       email: forgotForm.email.trim(),
+      code: forgotForm.code.trim(),
       new_password: forgotForm.newPassword,
     })
     ElMessage.success('密码重置成功，请使用新密码登录')
     showForgotDialog.value = false
     forgotForm.username = ''
     forgotForm.email = ''
-    forgotForm.newPassword = ''
   } catch (err: any) {
     ElMessage.error(err.response?.data?.msg || '重置失败')
   } finally {
@@ -306,5 +390,8 @@ async function handleForgotPassword() {
 .intro-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; font-family: var(--rh-font-display); font-size: 19px; }.intro-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--rh-ai); color: var(--rh-on-ai); font-size: 21px; font-weight: 700; }
 .intro-copy { position: relative; z-index: 1; max-width: 550px; }.intro-kicker { margin-bottom: 22px; color: var(--rh-ai); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }.intro-copy h1 { max-width: 540px; font-family: var(--rh-font-display); font-size: clamp(40px, 5vw, 72px); font-weight: 400; line-height: 1.04; }.intro-copy p { max-width: 420px; margin-top: 24px; color: var(--rh-on-inverse-soft); font-size: 16px; line-height: 1.8; }.intro-notes { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; }.intro-note { padding: 7px 10px; border: 1px solid var(--rh-on-inverse-border); border-radius: 3px; color: var(--rh-on-inverse-soft); font-size: 12px; }.intro-note.ai { border-color: rgba(183,216,75,.45); color: var(--rh-ai); }
 .login-panel { display: flex; align-items: center; justify-content: center; padding: 40px 7vw; background: var(--rh-bg-card); min-height: 100vh; }.login-card { width: 100%; max-width: 420px; overflow: visible; }.login-header { margin-bottom: 34px; }.login-title { margin: 0 0 8px; color: var(--rh-text-primary); font-family: var(--rh-font-display); font-size: 32px; font-weight: 500; }.login-subtitle { margin: 0; color: var(--rh-text-tertiary); font-size: 14px; }.login-tabs :deep(.el-tabs__item) { color: var(--rh-text-tertiary); font-size: 14px; font-weight: 700; }.login-tabs :deep(.el-tabs__item.is-active) { color: var(--rh-primary); }.login-tabs :deep(.el-tabs__active-bar) { background: var(--rh-primary); }.login-tabs :deep(.el-tabs__nav-wrap::after) { background: var(--rh-border); }.login-tabs :deep(.el-tabs__content) { overflow: visible; }.login-tabs :deep(.el-form-item) { margin-bottom: 20px; }.login-tabs :deep(.el-form-item__label) { color: var(--rh-text-secondary); font-size: 13px; font-weight: 700; margin-bottom: 8px; position: static !important; }.login-tabs :deep(.el-form-item__content) { min-width: 0; }.login-tabs :deep(.el-input) { display: block; width: 100%; min-width: 0; }.login-tabs :deep(.el-input__wrapper), .login-tabs :deep(.el-input__wrapper:hover), .login-tabs :deep(.el-input__wrapper.is-focus), .login-tabs :deep(.el-input.is-focus .el-input__wrapper) { width: 100%; height: 44px !important; min-height: 44px !important; padding: 8px 12px !important; box-sizing: border-box; transform: none !important; }.login-tabs :deep(.el-input__wrapper.is-focus), .login-tabs :deep(.el-input.is-focus .el-input__wrapper) { box-shadow: 0 0 0 2px var(--rh-primary-muted) inset !important; }.login-tabs :deep(.el-input__inner) { height: 100%; line-height: 28px; }.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.submit-btn { height: 44px; font-size: 14px; }.forgot-dialog .el-dialog { border-radius: var(--rh-radius-md); }
+.reset-hint { margin: 0 0 16px; color: var(--rh-text-tertiary); font-size: 13px; line-height: 1.7; }
+.reset-hint .el-button { margin-left: 0; padding: 0; vertical-align: baseline; }
+.reset-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 @media (max-width: 900px) { .login-container { display: block; }.login-intro { min-height: 250px; padding: 28px 24px; }.intro-copy { margin-top: 45px; }.intro-copy h1 { font-size: 38px; }.intro-copy p, .intro-notes { display: none; }.login-panel { min-height: calc(100vh - 250px); padding: 42px 24px; }.login-title { font-size: 28px; } }
 </style>

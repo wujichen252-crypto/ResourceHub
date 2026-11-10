@@ -10,6 +10,7 @@ from app.models.note import Note
 from app.models.category import Category
 from app.schemas.note import NoteCreate, NoteUpdate
 from app.services.search_service import search_service
+from app.services.tag_service import dump_tags, parse_tags
 
 
 def _ensure_block_ids(content_json: dict) -> dict:
@@ -97,6 +98,15 @@ class NoteService:
 
         return notes, total
 
+    async def get_all_notes(self, db: AsyncSession, user_id: int) -> list[Note]:
+        """导出用：不分页取当前用户全部笔记"""
+        result = await db.execute(
+            select(Note)
+            .where(Note.user_id == user_id)
+            .order_by(Note.updated_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def get_note(self, db: AsyncSession, note_id: int, user_id: int) -> Note:
         result = await db.execute(
             select(Note).where(Note.id == note_id, Note.user_id == user_id)
@@ -164,6 +174,57 @@ class NoteService:
         note = await self.get_note(db, note_id, user_id)
         await db.delete(note)
         await db.commit()
+
+    async def batch_notes(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        ids: list[int],
+        action: str,
+        category_id: int | None = None,
+        tags: list[str] | None = None,
+    ) -> list[Note]:
+        """批量移动 / 追加标签 / 删除；只处理属于当前用户的笔记，返回命中的笔记"""
+        result = await db.execute(
+            select(Note).where(Note.user_id == user_id, Note.id.in_(ids))
+        )
+        notes = list(result.scalars().all())
+        if not notes:
+            return []
+
+        if action == "move":
+            if category_id is not None:
+                category = await db.execute(
+                    select(Category).where(
+                        Category.id == category_id,
+                        Category.user_id == user_id,
+                        Category.type == "note",
+                    )
+                )
+                if not category.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=404,
+                        detail={"code": ErrorCode.CATEGORY_NOT_FOUND, "message": "目录不存在"},
+                    )
+            for note in notes:
+                note.category_id = category_id
+        elif action == "tag":
+            incoming = [tag.strip() for tag in (tags or []) if tag.strip()]
+            if not incoming:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"code": ErrorCode.VALIDATION_ERROR, "message": "请选择要添加的标签"},
+                )
+            for note in notes:
+                merged = parse_tags(note.tags)
+                merged.extend(tag for tag in incoming if tag not in merged)
+                note.tags = dump_tags(merged)
+        elif action == "delete":
+            for note in notes:
+                await db.delete(note)
+
+        await db.commit()
+        return notes
 
     async def toggle_pin(self, db: AsyncSession, note_id: int, user_id: int) -> Note:
         note = await self.get_note(db, note_id, user_id)

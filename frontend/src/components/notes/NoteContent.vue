@@ -23,7 +23,8 @@
         <el-icon><Folder /></el-icon> 导入文件夹
       </el-button>
       <span v-if="isImportingFolder" class="import-progress">{{ importProgress }}</span>
-      <el-button type="primary" @click="startCreate">创建第一篇笔记</el-button>
+      <el-button @click="templateDialogVisible = true">套用模板</el-button>
+      <el-button type="primary" @click="startCreate()">创建第一篇笔记</el-button>
     </EmptyState>
 
     <!-- Creating / Editing — 必须在列表条件之前，否则自动保存后 isCreating=false,isEditing=true 会被列表截胡 -->
@@ -37,6 +38,7 @@
         </div>
         <div class="editor-header-right">
           <span class="editor-hint" :class="`is-${saveStatus}`" aria-live="polite">{{ saveStatusText }}</span>
+          <el-button size="small" text @click="saveAsTemplate">存为模板</el-button>
           <el-button type="primary" size="small" @click="manualSave">
             <el-icon><Check /></el-icon> 保存
           </el-button>
@@ -125,8 +127,42 @@
             <el-icon><Folder /></el-icon> 导入文件夹
           </el-button>
           <span v-if="isImportingFolder" class="import-progress">{{ importProgress }}</span>
-          <el-button type="primary" size="small" @click="startCreate">
+          <el-button size="small" @click="templateDialogVisible = true">
+            <el-icon><Collection /></el-icon> 模板
+          </el-button>
+          <el-button v-if="notes.length" size="small" @click="toggleBatchMode">
+            {{ batchMode ? '退出管理' : '批量管理' }}
+          </el-button>
+          <el-button type="primary" size="small" @click="startCreate()">
             <el-icon><Plus /></el-icon> 新建笔记
+          </el-button>
+        </div>
+      </div>
+
+      <div v-if="batchMode" class="batch-toolbar">
+        <el-checkbox
+          :model-value="allSelected"
+          :indeterminate="someSelected && !allSelected"
+          @change="toggleSelectAll"
+        >
+          全选
+        </el-checkbox>
+        <span class="batch-count">已选 {{ selectedIds.length }} 篇</span>
+        <div class="batch-actions">
+          <el-button size="small" :disabled="!selectedIds.length" @click="openMoveDialog">
+            移动到
+          </el-button>
+          <el-button size="small" :disabled="!selectedIds.length" @click="openTagDialog">
+            添加标签
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            plain
+            :disabled="!selectedIds.length"
+            @click="handleBatchDelete"
+          >
+            删除
           </el-button>
         </div>
       </div>
@@ -136,16 +172,25 @@
           v-for="note in notes"
           :key="note.id"
           class="note-card"
-          @click="selectNote(note)"
+          :class="{ 'is-selected': batchMode && selectedIds.includes(note.id) }"
+          @click="batchMode ? toggleNoteSelection(note.id) : selectNote(note)"
           @contextmenu.prevent="showNoteContextMenu($event, note)"
         >
           <div class="card-header">
+            <span v-if="batchMode" class="card-check" @click.stop>
+              <el-checkbox
+                :model-value="selectedIds.includes(note.id)"
+                :aria-label="`选择「${note.title}」`"
+                @change="toggleNoteSelection(note.id)"
+              />
+            </span>
             <h3 class="card-title">
               <el-tag v-if="note.is_pinned" size="small" class="pin-tag">置顶</el-tag>
               {{ note.title }}
             </h3>
             <!-- 右键菜单的键盘 / 触屏等价入口 -->
             <button
+              v-if="!batchMode"
               type="button"
               class="card-more"
               :aria-label="`「${note.title}」的更多操作`"
@@ -197,6 +242,64 @@
     </div>
   </div>
 
+  <!-- 批量操作：移动目录 -->
+  <el-dialog v-model="moveDialogVisible" title="移动到目录" width="420px">
+    <el-select
+      v-model="moveTargetId"
+      clearable
+      filterable
+      placeholder="选择目录（留空表示移出目录）"
+      class="batch-dialog-select"
+    >
+      <el-option
+        v-for="cat in categoryOptions"
+        :key="cat.id"
+        :label="cat.label"
+        :value="cat.id"
+      />
+    </el-select>
+    <template #footer>
+      <el-button @click="moveDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="batchSubmitting" @click="submitBatchMove">
+        移动
+      </el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 批量操作：追加标签 -->
+  <el-dialog v-model="tagDialogVisible" title="添加标签" width="420px">
+    <el-select
+      v-model="batchTags"
+      multiple
+      filterable
+      allow-create
+      default-first-option
+      :reserve-keyword="false"
+      placeholder="选择或输入标签（回车添加）"
+      class="batch-dialog-select"
+    >
+      <el-option v-for="tag in allNoteTags" :key="tag" :label="tag" :value="tag" />
+    </el-select>
+    <p class="batch-dialog-hint">标签会追加到所选笔记现有标签之后，重复的会自动忽略。</p>
+    <template #footer>
+      <el-button @click="tagDialogVisible = false">取消</el-button>
+      <el-button
+        type="primary"
+        :loading="batchSubmitting"
+        :disabled="!batchTags.length"
+        @click="submitBatchTag"
+      >
+        添加
+      </el-button>
+    </template>
+  </el-dialog>
+
+  <NoteTemplateDialog
+    v-model="templateDialogVisible"
+    @apply="startCreateFromTemplate"
+    @blank="startCreate()"
+  />
+
   <!-- Hidden file input for MD import -->
   <input
     ref="fileInputRef"
@@ -238,20 +341,23 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  FolderOpened, Folder, Document, Plus, ArrowLeft, Check, Upload, MoreFilled,
+  FolderOpened, Folder, Document, Plus, ArrowLeft, Check, Upload, MoreFilled, Collection,
 } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import { notesApi } from '../../api/notes'
+import type { Note, NoteBatchRequest } from '../../api/notes'
+import { noteTemplatesApi } from '../../api/noteTemplates'
+import type { NoteTemplate } from '../../api/noteTemplates'
 import { plazaApi } from '../../api/plaza'
 import { aiApi } from '../../api/ai'
 import type { InlineActionName, InlineAIPayload } from '../../api/ai'
 import { getApiErrorMessage } from '../../api/http'
 import { useNotesStore } from '../../stores/notes'
 import { useCategoriesStore } from '../../stores/categories'
-import type { Note } from '../../api/notes'
 import NoteReader from './NoteReader.vue'
 import WysiwygEditor from './WysiwygEditor.vue'
+import NoteTemplateDialog from './NoteTemplateDialog.vue'
 import InlineAIMenu from './InlineAIMenu.vue'
 import InlineAIResult from './InlineAIResult.vue'
 import { formatRelative } from '../../utils/format'
@@ -295,6 +401,18 @@ const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 const lastSavedAt = ref<Date | null>(null)
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
 
+/** 编辑会话基线：放弃修改时回滚到此状态（手动保存会刷新基线） */
+interface EditBaseline {
+  title: string
+  content: string
+  contentJson: Record<string, any> | null
+  tags: string[]
+  categoryId: number | null
+}
+const sessionBaseline = ref<EditBaseline | null>(null)
+/** 本会话是否已有内容写入服务端（自动保存或手动保存成功） */
+let savedInSession = false
+
 // Computed
 const notes = computed(() => notesStore.notes)
 const total = computed(() => notesStore.total)
@@ -308,6 +426,19 @@ const flatCategories = computed(() => {
     for (const item of items) {
       result.push(item)
       if (item.children?.length) result.push(...flatten(item.children))
+    }
+    return result
+  }
+  return flatten(categoriesStore.noteCategories)
+})
+
+/** 批量移动下拉：带层级缩进，避免父子目录同名时无法区分 */
+const categoryOptions = computed(() => {
+  const flatten = (items: any[], depth = 0): { id: number; label: string }[] => {
+    const result: { id: number; label: string }[] = []
+    for (const item of items) {
+      result.push({ id: item.id, label: `${'　'.repeat(depth)}${item.name}` })
+      if (item.children?.length) result.push(...flatten(item.children, depth + 1))
     }
     return result
   }
@@ -336,12 +467,37 @@ const saveStatusText = computed(() => {
 })
 
 /** 记录未保存状态，并安排防抖自动保存 */
+function scheduleAutoSave() {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(() => { void autoSave() }, 1500)
+}
+
+function cancelAutoSave() {
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer)
+    autoSaveTimer = null
+  }
+}
+
 function markDirty() {
   if (!isEditing.value && !isCreating.value) return
   isDirty.value = true
   if (saveStatus.value !== 'saving') saveStatus.value = 'idle'
-  if (autoSaveTimer) clearTimeout(autoSaveTimer)
-  autoSaveTimer = setTimeout(() => { void autoSave() }, 1500)
+  scheduleAutoSave()
+}
+
+/** 进入编辑会话时记录基线；放弃修改时据此回滚 */
+function captureBaseline(note: Note | null) {
+  sessionBaseline.value = note
+    ? {
+        title: note.title,
+        content: note.content || '',
+        contentJson: note.content_json ?? null,
+        tags: [...(note.tags || [])],
+        categoryId: note.category_id,
+      }
+    : null
+  savedInSession = false
 }
 
 /** 内容有变化时静默保存；标题为空时不触发，避免产生空笔记 */
@@ -368,6 +524,47 @@ function markSaved() {
   isDirty.value = false
   saveStatus.value = 'saved'
   lastSavedAt.value = new Date()
+}
+
+/**
+ * 放弃本次编辑会话已写入服务端的内容（自动保存是静默落库的，单纯取消定时器不够）。
+ * 新建且仅由自动保存落库的笔记直接删除。返回是否成功。
+ */
+async function discardSessionChanges(): Promise<boolean> {
+  if (!savedInSession) return true
+  const id = editingNoteId.value
+  if (!id) return true
+  const baseline = sessionBaseline.value
+  if (!baseline) {
+    try {
+      await notesStore.deleteNote(id)
+      selectedNote.value = null
+      editingNoteId.value = undefined
+      emit('update:noteId', null)
+      await notesStore.fetchNotes()
+      savedInSession = false
+      return true
+    } catch {
+      ElMessage.error('放弃修改失败，请重试')
+      return false
+    }
+  }
+  try {
+    const restored = await notesStore.updateNote(id, {
+      title: baseline.title,
+      content: baseline.content,
+      content_json: baseline.contentJson,
+      category_id: baseline.categoryId,
+      tags: baseline.tags,
+    })
+    if (selectedNote.value?.id === id) selectedNote.value = restored
+    await notesStore.fetchNotes()
+    savedInSession = false
+    return true
+  } catch {
+    ElMessage.error('放弃修改失败，请重试')
+    return false
+  }
 }
 
 // 编辑内容 / 标题 / 标签 / 目录任一变化都视为未保存
@@ -488,6 +685,21 @@ const noteContextMenu = reactive({
   note: null as Note | null,
 })
 
+// ── 批量管理状态（folder watcher 会同步读取，须在其注册前声明）──
+const batchMode = ref(false)
+const selectedIds = ref<number[]>([])
+const batchSubmitting = ref(false)
+const moveDialogVisible = ref(false)
+const moveTargetId = ref<number | null>(null)
+const tagDialogVisible = ref(false)
+const batchTags = ref<string[]>([])
+const templateDialogVisible = ref(false)
+
+const allSelected = computed(
+  () => notes.value.length > 0 && selectedIds.value.length === notes.value.length,
+)
+const someSelected = computed(() => selectedIds.value.length > 0)
+
 const folderName = computed(() => {
   // 标签过滤视图（Dashboard 标签云跳转）优先展示标签名
   if (notesStore.selectedTag) return `标签：${notesStore.selectedTag}`
@@ -511,6 +723,7 @@ function findCategory(cat: any, id: number | null): any {
 
 // Watch folder changes → fetch notes（阅读态由 noteId 驱动，此处不再清除选中）
 watch(() => props.folderId, (newId) => {
+  if (batchMode.value) exitBatchMode()
   if (newId) {
     notesStore.setCategory(newId)
   } else if (!notesStore.selectedTag) {
@@ -553,21 +766,154 @@ function clearSelection() {
   notesStore.fetchNotes() // 回到列表时刷新
 }
 
-function startCreate() {
+function startCreate(template?: NoteTemplate) {
   isCreating.value = true
   isEditing.value = false
   selectedNote.value = null
   editingNoteId.value = undefined
-  editTitle.value = ''
-  editContent.value = ''
-  editContentJson.value = null
-  editCategoryId.value = props.folderId
-  editTags.value = []
+  editTitle.value = template?.name ?? ''
+  if (template) {
+    const raw = template.content || ''
+    editContent.value = isHtml(raw) ? raw : md.render(raw)
+    editContentJson.value = template.content_json ?? null
+    editTags.value = [...(template.tags || [])]
+    editCategoryId.value = template.category_id ?? props.folderId
+  } else {
+    editContent.value = ''
+    editContentJson.value = null
+    editTags.value = []
+    editCategoryId.value = props.folderId
+  }
+  captureBaseline(null)
   // 清空字段会触发 watch → markDirty，等 watch 回调后再复位脏标记
   nextTick(() => {
     isDirty.value = false
     saveStatus.value = 'idle'
   })
+}
+
+function startCreateFromTemplate(template: NoteTemplate) {
+  templateDialogVisible.value = false
+  startCreate(template)
+}
+
+/** 把当前编辑器内容存成模板：即使笔记还未保存也可用 */
+async function saveAsTemplate() {
+  const title = editTitle.value.trim()
+  if (!title) {
+    ElMessage.warning('请先填写标题')
+    return
+  }
+  let name: string
+  try {
+    const result = await ElMessageBox.prompt(
+      '将当前标题、正文、标签与目录保存为模板，下次新建时可一键套用。',
+      '存为模板',
+      {
+        inputValue: title,
+        inputValidator: (v: string) => (v && v.trim() ? true : '模板名称不能为空'),
+        inputErrorMessage: '模板名称不能为空',
+        confirmButtonText: '保存',
+        cancelButtonText: '取消',
+      },
+    )
+    name = result.value.trim()
+  } catch {
+    return
+  }
+  try {
+    await noteTemplatesApi.create({
+      name,
+      content: editContent.value,
+      content_json: editContentJson.value,
+      tags: editTags.value.map((tag) => tag.trim()).filter((tag) => tag),
+      category_id: editCategoryId.value,
+    })
+    ElMessage.success('已存为模板')
+  } catch {
+    // 拦截器已提示
+  }
+}
+
+// ── 批量管理 ──────────────────────────────────────
+function clearBatchSelection() {
+  selectedIds.value = []
+}
+
+function exitBatchMode() {
+  batchMode.value = false
+  clearBatchSelection()
+}
+
+function toggleBatchMode() {
+  if (batchMode.value) exitBatchMode()
+  else {
+    closeNoteContextMenu()
+    batchMode.value = true
+  }
+}
+
+function toggleNoteSelection(id: number) {
+  const index = selectedIds.value.indexOf(id)
+  if (index >= 0) selectedIds.value.splice(index, 1)
+  else selectedIds.value.push(id)
+}
+
+function toggleSelectAll(value: string | number | boolean) {
+  selectedIds.value = value ? notes.value.map((note) => note.id) : []
+}
+
+function openMoveDialog() {
+  moveTargetId.value = null
+  moveDialogVisible.value = true
+}
+
+function openTagDialog() {
+  batchTags.value = []
+  tagDialogVisible.value = true
+}
+
+async function runBatch(payload: NoteBatchRequest, successText: string) {
+  batchSubmitting.value = true
+  try {
+    const { affected } = await notesApi.batch(payload)
+    ElMessage.success(`${successText}，共 ${affected} 篇`)
+    exitBatchMode()
+    await Promise.all([notesStore.fetchNotes(), notesStore.fetchAllNotes()])
+  } catch {
+    // 拦截器已提示
+  } finally {
+    batchSubmitting.value = false
+  }
+}
+
+async function submitBatchMove() {
+  moveDialogVisible.value = false
+  await runBatch(
+    { ids: selectedIds.value, action: 'move', category_id: moveTargetId.value },
+    moveTargetId.value === null ? '已移出目录' : '已移动',
+  )
+}
+
+async function submitBatchTag() {
+  tagDialogVisible.value = false
+  await runBatch(
+    { ids: selectedIds.value, action: 'tag', tags: batchTags.value },
+    '已添加标签',
+  )
+}
+
+async function handleBatchDelete() {
+  try {
+    await ElMessageBox.confirm(
+      `将永久删除所选 ${selectedIds.value.length} 篇笔记，此操作不可撤销。`,
+      '批量删除',
+      { type: 'error', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  await runBatch({ ids: selectedIds.value, action: 'delete' }, '已删除')
 }
 
 function triggerImport() {
@@ -708,6 +1054,7 @@ function startEdit() {
     editContentJson.value = null
   }
   editTags.value = [...(selectedNote.value.tags || [])]
+  captureBaseline(selectedNote.value)
   // 载入内容会触发 watch → markDirty，需等 watch 回调执行后再复位脏标记，避免刚打开就判定未保存
   nextTick(() => {
     isDirty.value = false
@@ -718,6 +1065,8 @@ function startEdit() {
 /** 退出编辑：存在未保存修改时先确认，避免内容静默丢失 */
 async function cancelEdit() {
   if (isDirty.value) {
+    // 先停掉防抖自动保存：否则确认框停留期间定时器仍会落库，「放弃修改」就失效了
+    cancelAutoSave()
     try {
       await ElMessageBox.confirm('当前修改尚未保存，确定退出编辑吗？', '未保存的修改', {
         confirmButtonText: '放弃修改',
@@ -725,10 +1074,16 @@ async function cancelEdit() {
         type: 'warning',
       })
     } catch {
+      if (isDirty.value) scheduleAutoSave()
+      return
+    }
+    // 自动保存可能已把内容写入服务端，放弃时回滚到编辑会话开始的状态
+    if (!(await discardSessionChanges())) {
+      if (isDirty.value) scheduleAutoSave()
       return
     }
   }
-  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  cancelAutoSave()
   isDirty.value = false
   closeInlineMenu()
   closeInlineResult()
@@ -780,6 +1135,18 @@ async function handleSave(
       isCreating.value = false
       isEditing.value = true
     }
+    savedInSession = true
+    if (showToast) {
+      // 手动保存视为一次提交：后续「放弃修改」回滚到这次保存的状态
+      sessionBaseline.value = {
+        title: data.title,
+        content: payload.content,
+        contentJson: (payload.content_json as Record<string, any> | null) ?? null,
+        tags,
+        categoryId: editCategoryId.value,
+      }
+      savedInSession = false
+    }
     if (showToast) ElMessage.success('已保存')
     markSaved()
   } catch (error) {
@@ -812,18 +1179,25 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
 
 onBeforeRouteLeave(async () => {
   if (!isDirty.value) return true
+  // 先停掉防抖自动保存，避免确认框停留期间内容被静默落库
+  cancelAutoSave()
   try {
     await ElMessageBox.confirm('当前修改尚未保存，确定离开吗？', '未保存的修改', {
       confirmButtonText: '放弃修改',
       cancelButtonText: '继续编辑',
       type: 'warning',
     })
-    if (autoSaveTimer) clearTimeout(autoSaveTimer)
-    isDirty.value = false
-    return true
   } catch {
+    if (isDirty.value) scheduleAutoSave()
     return false
   }
+  // 回滚本次编辑会话内自动保存写入的内容，保证「放弃修改」后重新打开是原始内容
+  if (!(await discardSessionChanges())) {
+    if (isDirty.value) scheduleAutoSave()
+    return false
+  }
+  isDirty.value = false
+  return true
 })
 
 onMounted(() => {
@@ -879,6 +1253,7 @@ async function handleTogglePublish() {
 }
 
 function handlePageChange(p: number) {
+  clearBatchSelection()
   notesStore.setPage(p)
 }
 
@@ -968,6 +1343,54 @@ async function contextDelete() {
   font-weight: 700;
   color: var(--rh-text-primary);
   margin: 0;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  background: var(--rh-bg-hover);
+  border: 1px solid var(--rh-border-faint);
+  border-radius: var(--rh-radius-sm);
+}
+
+.batch-count {
+  font-size: 13px;
+  color: var(--rh-text-secondary);
+}
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.card-check {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.card-header .card-title {
+  flex: 1;
+}
+
+.note-card.is-selected {
+  background: var(--rh-bg-active);
+  box-shadow: inset 3px 0 0 var(--rh-primary);
+}
+
+.batch-dialog-select {
+  width: 100%;
+}
+
+.batch-dialog-hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--rh-text-tertiary);
 }
 
 .note-cards {

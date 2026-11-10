@@ -1,10 +1,21 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+import json
+from datetime import date
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db, get_current_user
+from app.core.errors import ErrorCode
 from app.core.response import orm_to_dict, success_response
 from app.models.user import User
-from app.schemas.note import NoteCreate, NoteDetailResponse, NoteListResponse, NoteUpdate
+from app.schemas.note import (
+    NoteBatchRequest,
+    NoteCreate,
+    NoteDetailResponse,
+    NoteListResponse,
+    NoteUpdate,
+)
+from app.services import note_markdown_service
 from app.services.ai.index_service import index_note_in_background
 from app.services.category_service import CategoryService
 from app.services.note_service import NoteService
@@ -62,6 +73,141 @@ async def list_notes(
             "page_size": page_size,
         },
         msg="获取笔记列表成功",
+    )
+
+
+@router.get("/export/markdown")
+async def export_notes_markdown(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """批量导出全部笔记：zip 内每篇一个 .md，带 title/tags 等 frontmatter"""
+    notes = await service.get_all_notes(db, current_user.id)
+    payload = note_markdown_service.notes_to_markdown_zip(notes)
+    filename = f"resourcehub-notes-{date.today():%Y%m%d}.zip"
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export/json")
+async def export_notes_json(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """批量导出全部笔记全文为 JSON"""
+    notes = await service.get_all_notes(db, current_user.id)
+    items = [
+        NoteDetailResponse.model_validate(orm_to_dict(note)).model_dump(mode="json")
+        for note in notes
+    ]
+    filename = f"resourcehub-notes-{date.today():%Y%m%d}.json"
+    return Response(
+        content=json.dumps(items, ensure_ascii=False, indent=2).encode("utf-8"),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/import/markdown")
+async def import_notes_markdown(
+    background: BackgroundTasks,
+    files: list[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """批量导入 Markdown：.md/.markdown 单文件或包含它们的 .zip；同目录同名笔记覆盖"""
+    if not files:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": ErrorCode.VALIDATION_ERROR, "message": "没有选择文件"},
+        )
+    if len(files) > note_markdown_service.MAX_IMPORT_FILES:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": ErrorCode.VALIDATION_ERROR, "message": "单次最多导入 200 个文件"},
+        )
+
+    entries: list[tuple[str, str]] = []
+    skipped: list[dict] = []
+    for upload in files:
+        filename = upload.filename or "note.md"
+        raw = await upload.read(note_markdown_service.MAX_FILE_BYTES + 1)
+        if len(raw) > note_markdown_service.MAX_FILE_BYTES:
+            skipped.append({"file": filename, "reason": "文件超过 2MB"})
+            continue
+        try:
+            extracted = note_markdown_service.extract_markdown_files(filename, raw)
+        except ValueError as exc:
+            skipped.append({"file": filename, "reason": str(exc)})
+            continue
+        if not extracted:
+            skipped.append({"file": filename, "reason": "未找到 Markdown 文件"})
+            continue
+        entries.extend(extracted)
+
+    if len(entries) > note_markdown_service.MAX_IMPORT_FILES:
+        skipped.extend(
+            {"file": name, "reason": "超过单次 200 篇上限"}
+            for name, _ in entries[note_markdown_service.MAX_IMPORT_FILES:]
+        )
+        entries = entries[: note_markdown_service.MAX_IMPORT_FILES]
+
+    created = 0
+    replaced = 0
+    for name, text in entries:
+        parsed = note_markdown_service.parse_markdown(name, text)
+        if not parsed["content"].strip():
+            skipped.append({"file": name, "reason": "内容为空"})
+            continue
+        try:
+            note, was_replaced = await service.import_or_replace_note(
+                db, current_user.id, NoteCreate(**parsed)
+            )
+        except Exception:
+            skipped.append({"file": name, "reason": "写入失败"})
+            continue
+        background.add_task(index_note_in_background, current_user.id, note.id)
+        background.add_task(sync_note_to_search, current_user.id, note.id)
+        if was_replaced:
+            replaced += 1
+        else:
+            created += 1
+
+    return success_response(
+        data={
+            "created": created,
+            "replaced": replaced,
+            "skipped": skipped,
+            "total": len(entries),
+        },
+        msg=f"导入完成：新增 {created} 篇，覆盖 {replaced} 篇",
+    )
+
+
+@router.post("/batch")
+async def batch_notes(
+    data: NoteBatchRequest,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """批量操作：移动目录 / 追加标签 / 删除（仅限本人笔记）"""
+    notes = await service.batch_notes(
+        db, current_user.id, data.ids, data.action, data.category_id, data.tags
+    )
+    if data.action == "delete":
+        for note in notes:
+            background.add_task(remove_note_from_search, note.id)
+    else:
+        # 标签可能进入搜索索引，移动不影响正文本但仍整篇重建，逻辑简单且幂等
+        for note in notes:
+            background.add_task(index_note_in_background, current_user.id, note.id)
+            background.add_task(sync_note_to_search, current_user.id, note.id)
+    return success_response(
+        data={"affected": len(notes)}, msg=f"已处理 {len(notes)} 篇笔记"
     )
 
 

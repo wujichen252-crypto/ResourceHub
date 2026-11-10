@@ -45,7 +45,7 @@
         </VizCard>
 
         <!-- 场景成本占比 -->
-        <VizCard eyebrow="成本结构" title="场景成本占比" hint="按调用场景折算的金额分布" empty="暂无成本数据" :has-data="summary.by_scene.length > 0">
+        <VizCard eyebrow="成本结构" title="场景成本占比" hint="按调用场景折算的金额分布" empty="暂无成本数据（所用模型未配置单价）" :has-data="summary.by_scene.some(s => s.cost > 0)">
           <div ref="sceneEl" class="viz-chart"></div>
           <template #sr-table>
             <table class="viz-sr-table" aria-hidden="false" aria-label="场景成本占比数据摘要">
@@ -151,7 +151,9 @@ function fmtTokens(v: number): string {
 }
 const quotaPercent = computed(() => {
   if (!summary.value || summary.value.quota_limit <= 0) return '—'
-  return Math.min(100, Math.round((summary.value.quota_used_today / summary.value.quota_limit) * 100))
+  const pct = (summary.value.quota_used_today / summary.value.quota_limit) * 100
+  if (pct > 0 && pct < 1) return '<1'
+  return String(Math.min(100, Math.round(pct)))
 })
 function gradeTag(grade: NoteGrade): 'success' | 'primary' | 'warning' | 'danger' | 'info' {
   switch (grade) {
@@ -181,7 +183,7 @@ useChart(trendEl, {
     },
     yAxis: [
       { type: 'value', splitLine: { lineStyle: { color: themeVar('--rh-border-faint') } }, axisLabel: { color: themeVar('--rh-text-secondary'), fontSize: 12 } },
-      { type: 'value', splitLine: { show: false }, axisLabel: { color: themeVar('--rh-text-secondary'), fontSize: 12, formatter: (v: number) => `¥${v.toFixed(2)}` } },
+      { type: 'value', splitLine: { show: false }, axisLabel: { color: themeVar('--rh-text-secondary'), fontSize: 12, formatter: (v: number) => `¥${v === 0 ? '0' : v < 0.1 ? v.toFixed(4) : v.toFixed(2)}` } },
     ],
     series: [
       ...sceneKeys.value.map((scene, i) => ({

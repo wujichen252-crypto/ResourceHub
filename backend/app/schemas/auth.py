@@ -24,9 +24,15 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
-class ForgotPasswordRequest(BaseModel):
-    username: str
-    email: str
+class PasswordResetCodeRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=50)
+    email: str = Field(..., min_length=3, max_length=100)
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=50)
+    email: str = Field(..., min_length=3, max_length=100)
+    code: str = Field(..., pattern=r"^\d{6}$")
     new_password: str = Field(..., min_length=8)
 
 

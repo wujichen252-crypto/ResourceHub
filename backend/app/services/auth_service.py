@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from app.models.user import User
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, UserResponse,
-    ForgotPasswordRequest, ChangePasswordRequest,
+    ChangePasswordRequest,
 )
 from app.core.errors import ErrorCode
 from app.core.security import (
@@ -78,24 +78,6 @@ class AuthService:
     async def get_user_by_id(self, db: AsyncSession, user_id: int) -> User | None:
         result = await db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
-
-    async def forgot_password(
-        self, db: AsyncSession, data: ForgotPasswordRequest
-    ) -> User:
-        # 验证用户名 + 邮箱匹配
-        result = await db.execute(
-            select(User).where(User.username == data.username, User.email == data.email)
-        )
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": ErrorCode.USERNAME_EMAIL_MISMATCH, "message": "用户名或邮箱不匹配"},
-            )
-        user.password_hash = hash_password(data.new_password)
-        await db.commit()
-        await db.refresh(user)
-        return user
 
     async def change_password(
         self, db: AsyncSession, user_id: int, data: ChangePasswordRequest

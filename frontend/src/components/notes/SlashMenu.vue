@@ -55,6 +55,8 @@ const props = defineProps<{
   query?: string
   // 装饰节点提供定位坐标（from @tiptap/suggestion decoration）
   position?: { top: number; left: number } | null
+  // Suggestion 提供的选中执行器：执行后由 item.command 删除 /query 文本并插入块
+  command?: (item: SlashMenuItem) => void
 }>()
 
 const emit = defineEmits<{
@@ -95,7 +97,11 @@ watch(
 function pickItem(idx: number) {
   const item = filteredItems.value[idx]
   if (!item) return
-  emit('select', item)
+  if (props.command) {
+    props.command(item)
+  } else {
+    emit('select', item)
+  }
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -105,16 +111,20 @@ function onKeyDown(e: KeyboardEvent) {
   }
   if (e.key === 'ArrowDown') {
     e.preventDefault()
+    e.stopPropagation()
     activeIndex.value = (activeIndex.value + 1) % filteredItems.value.length
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
+    e.stopPropagation()
     activeIndex.value =
       (activeIndex.value - 1 + filteredItems.value.length) % filteredItems.value.length
   } else if (e.key === 'Enter') {
     e.preventDefault()
+    e.stopPropagation()
     pickItem(activeIndex.value)
   } else if (e.key === 'Escape') {
     e.preventDefault()
+    e.stopPropagation()
     close()
   }
 }

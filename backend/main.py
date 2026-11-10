@@ -15,7 +15,20 @@ from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.response import error_response, APIError
 from app.core.errors import ErrorCode
-from app.routers import auth, notes, prompts, categories, stats, plaza, ai, agent, roi, search
+from app.routers import (
+    auth,
+    notes,
+    note_templates,
+    prompts,
+    categories,
+    stats,
+    plaza,
+    ai,
+    agent,
+    roi,
+    search,
+    tags,
+)
 from app.services.ai.proactive_scheduler import scheduler_loop
 
 logger = logging.getLogger(__name__)
@@ -76,6 +89,8 @@ app.add_middleware(
 # 注册路由
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(notes.router, prefix="/api/notes", tags=["笔记"])
+app.include_router(note_templates.router, prefix="/api/note-templates", tags=["笔记模板"])
+app.include_router(tags.router, prefix="/api/tags", tags=["标签"])
 app.include_router(prompts.router, prefix="/api/prompts", tags=["提示词"])
 app.include_router(categories.router, prefix="/api/categories", tags=["分类"])
 app.include_router(search.router, prefix="/api/search", tags=["全局搜索"])

@@ -1,4 +1,4 @@
-import http from './http'
+import http, { LONG_TASK_TIMEOUT } from './http'
 
 export interface Note {
   id: number
@@ -49,6 +49,22 @@ export interface NoteListParams {
   is_pinned?: boolean
 }
 
+export interface MarkdownImportResult {
+  created: number
+  replaced: number
+  skipped: { file: string; reason: string }[]
+  total: number
+}
+
+export interface NoteBatchRequest {
+  ids: number[]
+  action: 'move' | 'tag' | 'delete'
+  /** move：目标目录，null 表示移出目录 */
+  category_id?: number | null
+  /** tag：追加到现有标签之后（自动去重） */
+  tags?: string[]
+}
+
 export const notesApi = {
   list(params?: NoteListParams): Promise<NoteListResponse> {
     return http.get('/notes', { params })
@@ -76,5 +92,32 @@ export const notesApi = {
 
   togglePin(id: number): Promise<{ id: number; is_pinned: boolean }> {
     return http.put(`/notes/${id}/pin`)
+  },
+
+  batch(data: NoteBatchRequest): Promise<{ affected: number }> {
+    return http.post('/notes/batch', data)
+  },
+
+  exportMarkdown(): Promise<Blob> {
+    return http.get('/notes/export/markdown', {
+      responseType: 'blob',
+      timeout: LONG_TASK_TIMEOUT,
+    })
+  },
+
+  exportJson(): Promise<Blob> {
+    return http.get('/notes/export/json', {
+      responseType: 'blob',
+      timeout: LONG_TASK_TIMEOUT,
+    })
+  },
+
+  importMarkdown(files: File[]): Promise<MarkdownImportResult> {
+    const form = new FormData()
+    files.forEach((file) => form.append('files', file))
+    return http.post('/notes/import/markdown', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: LONG_TASK_TIMEOUT,
+    })
   },
 }

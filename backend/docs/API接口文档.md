@@ -218,6 +218,78 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ---
 
+### 2.5 请求密码重置验证码 `POST /api/auth/password-reset/request`
+
+向「用户名 + 已绑定邮箱」匹配的账号发送 6 位验证码，有效期 5 分钟。
+
+**请求体：**
+```json
+{
+  "username": "alice",
+  "email": "alice@example.com"
+}
+```
+
+**成功响应 `200 OK`：**
+```json
+{
+  "code": 200,
+  "data": null,
+  "msg": "如果该账号存在且已绑定邮箱，验证码已发送，请注意查收"
+}
+```
+
+> 无论账号是否存在、邮箱是否匹配、是否处于重发冷却或达到每日上限，都返回同一句文案，避免账号枚举。
+> 重发冷却默认 60 秒，每日上限默认 10 次，均可在 `.env` 中调整。
+
+**错误响应：**
+```json
+// 503 - 未配置 SMTP
+{ "detail": { "code": 1012, "message": "邮件服务未配置，暂时无法发送验证码" } }
+
+// 502 - SMTP 发送失败
+{ "detail": { "code": 1013, "message": "验证码发送失败，请稍后再试" } }
+```
+
+---
+
+### 2.6 确认密码重置 `POST /api/auth/password-reset/confirm`
+
+校验验证码并设置新密码。验证码一次性使用，连续输错 5 次后作废。
+
+**请求体：**
+```json
+{
+  "username": "alice",
+  "email": "alice@example.com",
+  "code": "123456",
+  "new_password": "newpassword123"
+}
+```
+
+**成功响应 `200 OK`：**
+```json
+{
+  "code": 200,
+  "data": null,
+  "msg": "密码重置成功，请使用新密码登录"
+}
+```
+
+**错误响应：**
+```json
+// 400 - 无可用验证码或验证码不匹配
+{ "detail": { "code": 1009, "message": "验证码无效或已过期" } }
+
+// 400 - 验证码过期
+{ "detail": { "code": 1010, "message": "验证码已过期，请重新获取" } }
+
+// 400 - 输错次数超限
+{ "detail": { "code": 1011, "message": "验证码错误次数过多，请重新获取" } }
+```
+
+---
+
 ## 3. 笔记模块 `/api/notes`
 
 ### 3.1 获取笔记列表 `GET /api/notes`
