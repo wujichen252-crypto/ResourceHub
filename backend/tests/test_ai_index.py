@@ -3,6 +3,7 @@
 import asyncio
 
 import pytest
+from conftest import register_user
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -15,7 +16,6 @@ from app.models.note import Note
 from app.models.user import User
 from app.services.ai import index_service
 from app.services.ai.index_service import IndexService, index_note_in_background
-from conftest import register_user
 
 
 @pytest.fixture()

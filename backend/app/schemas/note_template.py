@@ -1,9 +1,8 @@
 import json
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-from typing_extensions import Annotated
 
 from app.schemas.common import EmptyStr, JsonList
 

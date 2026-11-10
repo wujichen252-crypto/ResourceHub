@@ -4,6 +4,7 @@ import asyncio
 import json
 
 import pytest
+from conftest import register_user
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -15,7 +16,6 @@ from app.models.note import Note
 from app.models.user import User
 from app.services.ai.retrieval import SearchHit
 from app.services.ai.trust import compute_trust, extract_indices, split_sentences
-from conftest import register_user
 
 
 class FakeHit:

@@ -4,6 +4,7 @@ import asyncio
 import json
 
 import pytest
+from conftest import register_user
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -11,7 +12,6 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 from app.services.ai.optimizer_service import OPTIMIZER_SERVICE
 from app.services.ai.provider import ChatResult
-from conftest import register_user
 
 BASELINE_CONTENT = "请把 {{topic}} 讲清楚"
 IMPROVED_CONTENT = "请把 {{topic}} 讲清楚，并补充一个可运行的示例"

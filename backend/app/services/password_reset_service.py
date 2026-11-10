@@ -105,7 +105,7 @@ class PasswordResetService:
             await email_service.send_password_reset_code(
                 user.email, user.username, code, settings.RESET_CODE_TTL_MINUTES
             )
-        except Exception:
+        except Exception as exc:
             logger.exception("密码重置验证码发送失败 user_id=%s", user.id)
             await db.execute(
                 update(PasswordResetToken)
@@ -122,7 +122,7 @@ class PasswordResetService:
                     "code": ErrorCode.EMAIL_SEND_FAILED,
                     "message": "验证码发送失败，请稍后再试",
                 },
-            )
+            ) from exc
 
     async def confirm(self, db: AsyncSession, data: PasswordResetConfirmRequest) -> None:
         user = await self._find_user(db, data.username, data.email)

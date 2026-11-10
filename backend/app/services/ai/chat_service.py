@@ -14,7 +14,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.errors import ErrorCode
 from app.models.ai import AIConversation, AIMessage
 from app.models.user import User
 from app.schemas.ai import ChatRequest

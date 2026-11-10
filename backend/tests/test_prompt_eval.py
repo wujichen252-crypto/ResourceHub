@@ -1,10 +1,10 @@
 """提示词评测实验室测试 — 评测集 CRUD、生成+评委打分、历史留档与降级路径"""
 
 import pytest
+from conftest import register_user
 
 from app.core.config import settings
 from app.services.ai.provider import AIProviderError, ChatResult
-from conftest import register_user
 
 
 class FakeProvider:

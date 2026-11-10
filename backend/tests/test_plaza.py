@@ -138,7 +138,8 @@ def test_mine_management(client, auth):
     alice_h = auth
     bob_h = register_user(client, "bob")
     note_id = _create_note(client, alice_h)
-    bob_note = _create_note(client, bob_h, title="bob私有")
+    # 为 bob 造一条私有笔记，用于验证未发布内容不会出现在 /mine 列表
+    _create_note(client, bob_h, title="bob私有")
     client.put("/api/plaza/publish", json={"type": "note", "id": note_id}, headers=alice_h)
 
     r = client.get("/api/plaza/mine", params={"type": "note"}, headers=alice_h)

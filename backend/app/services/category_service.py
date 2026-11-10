@@ -1,6 +1,7 @@
-from sqlalchemy import select, delete as sqla_delete
+from fastapi import HTTPException
+from sqlalchemy import delete as sqla_delete
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
 
 from app.core.errors import ErrorCode
 from app.models.category import Category

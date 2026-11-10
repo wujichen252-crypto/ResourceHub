@@ -1,10 +1,10 @@
 """笔记内联 AI 测试 — 三种动作的 prompt 拼装、参数校验与未配置兜底"""
 
 import pytest
+from conftest import register_user
 
 from app.core.config import settings
 from app.services.ai.provider import ChatResult
-from conftest import register_user
 
 
 class FakeInlineProvider:

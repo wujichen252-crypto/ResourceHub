@@ -1,16 +1,21 @@
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
 
-from app.models.user import User
-from app.schemas.auth import (
-    RegisterRequest, LoginRequest, TokenResponse, UserResponse,
-    ChangePasswordRequest,
-)
 from app.core.errors import ErrorCode
 from app.core.security import (
-    hash_password, verify_password,
-    create_access_token, create_refresh_token, decode_token
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
+from app.models.user import User
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
 )
 
 

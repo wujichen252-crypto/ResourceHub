@@ -11,10 +11,10 @@ from app.schemas.agent import (
     AgentMemoryExtractRequest,
     AgentMemoryOut,
     AgentMemoryUpdate,
+    AgentProactiveMessageOut,
     AgentProfileCreate,
     AgentProfileOut,
     AgentProfileUpdate,
-    AgentProactiveMessageOut,
 )
 from app.services.ai.memory_service import MemoryService
 from app.services.ai.persona_service import PersonaService

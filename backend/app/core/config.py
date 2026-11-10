@@ -4,11 +4,13 @@ ResourceHub 配置管理
 生产环境必须通过环境变量设置敏感配置
 """
 
-import os
+import logging
 import secrets
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -111,9 +113,9 @@ class Settings(BaseSettings):
                     "请生成一个强密钥并配置到环境变量中。"
                 )
             self.SECRET_KEY = self._generate_dev_secret_key()
-            print(
-                f"[警告] 开发环境使用自动生成的 SECRET_KEY。"
-                f"生产环境请务必设置 SECRET_KEY 环境变量！"
+            logger.warning(
+                "开发环境使用自动生成的 SECRET_KEY（进程重启后旧令牌会失效）；"
+                "生产环境必须设置 SECRET_KEY 环境变量"
             )
 
     @staticmethod

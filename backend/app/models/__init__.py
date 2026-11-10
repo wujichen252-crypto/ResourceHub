@@ -1,3 +1,4 @@
+from .agent import AgentMemory, AgentProactiveMessage, AgentProfile
 from .ai import (
     AIConversation,
     AIMessage,
@@ -10,13 +11,12 @@ from .ai import (
     PromptOptimizationRound,
     PromptOptimizationRun,
 )
-from .agent import AgentMemory, AgentProactiveMessage, AgentProfile
-from .user import User
-from .password_reset import PasswordResetToken
 from .category import Category
 from .note import Note, NoteTemplate
 from .note_reaction import NoteFavorite, NoteLike
-from .prompt import Prompt, PromptVersion, PromptPreset, PromptUsageLog
+from .password_reset import PasswordResetToken
+from .prompt import Prompt, PromptPreset, PromptUsageLog, PromptVersion
+from .user import User
 
 __all__ = [
     "User",

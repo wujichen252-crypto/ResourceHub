@@ -1,13 +1,13 @@
 import json
 import uuid
 
-from sqlalchemy import select, func, or_, delete, update
+from fastapi import HTTPException
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
 
 from app.core.errors import ErrorCode
-from app.models.note import Note
 from app.models.category import Category
+from app.models.note import Note
 from app.schemas.note import NoteCreate, NoteUpdate
 from app.services.search_service import search_service
 from app.services.tag_service import dump_tags, parse_tags

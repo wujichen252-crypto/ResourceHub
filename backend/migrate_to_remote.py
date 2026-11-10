@@ -7,16 +7,17 @@
 """
 
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import inspect, select, MetaData, Table, text
+
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.core.database import Base
 from app.core.config import settings
-from app.models.user import User
-from app.models.note import Note
+from app.core.database import Base
 from app.models.category import Category
-from app.models.prompt import Prompt, PromptVersion, PromptPreset, PromptUsageLog
+from app.models.note import Note
+from app.models.prompt import Prompt, PromptPreset, PromptUsageLog, PromptVersion
+from app.models.user import User
 
 
 async def clear_remote_database():
@@ -308,7 +309,7 @@ async def verify_migration():
             category_count = await session.execute(select(Category))
             prompt_count = await session.execute(select(Prompt))
 
-            print(f"\n远程数据库中的数据统计:")
+            print("\n远程数据库中的数据统计:")
             print(f"  👤 用户: {len(user_count.scalars().all())}")
             print(f"  📝 笔记: {len(note_count.scalars().all())}")
             print(f"  📁 分类: {len(category_count.scalars().all())}")
@@ -324,7 +325,7 @@ async def main():
     """主迁移流程"""
     print("🚀 ResourceHub 数据库迁移工具")
     print("=" * 50)
-    print(f"源: 本地 SQLite (resourcehub.db)")
+    print("源: 本地 SQLite (resourcehub.db)")
     print(f"目标: 远程 MySQL ({settings.DATABASE_URL.split('@')[1]})")
     print("=" * 50)
 
