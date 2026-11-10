@@ -13,12 +13,13 @@ import math
 import re
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.ai import NoteChunk
 from app.models.note import Note
+from app.models.team import TeamMember
 from app.services.ai.provider import AIProviderError, get_embedding_provider
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,22 @@ def _rrf_weights(scores: list[float]) -> dict[int, float]:
     return {index: 1.0 / (_RRF_K + rank + 1) for rank, index in enumerate(ranked)}
 
 
+async def _retrieval_scope(db: AsyncSession, user_id: int):
+    """检索范围：个人笔记 + 用户所在团队的共享笔记
+
+    团队知识库是 AI 问答的一等数据源，成员无需复制笔记即可被检索到；
+    个人笔记仍只对本人可见，团队之间互不越界。
+    """
+    result = await db.execute(
+        select(TeamMember.team_id).where(TeamMember.user_id == user_id)
+    )
+    team_ids = list(result.scalars().all())
+    scope = NoteChunk.user_id == user_id
+    if team_ids:
+        scope = or_(scope, Note.team_id.in_(team_ids))
+    return scope
+
+
 async def retrieve(
     db: AsyncSession,
     user_id: int,
@@ -176,8 +193,7 @@ async def retrieve_overview(
         select(NoteChunk, Note.title, Note.updated_at)
         .join(Note, Note.id == NoteChunk.note_id)
         .where(
-            NoteChunk.user_id == user_id,
-            Note.user_id == user_id,
+            await _retrieval_scope(db, user_id),
             NoteChunk.chunk_index == 0,
         )
         .order_by(Note.updated_at.desc())
@@ -206,7 +222,7 @@ async def _load_candidates(
     result = await db.execute(
         select(NoteChunk, Note.title)
         .join(Note, Note.id == NoteChunk.note_id)
-        .where(NoteChunk.user_id == user_id, Note.user_id == user_id)
+        .where(await _retrieval_scope(db, user_id))
         .order_by(NoteChunk.updated_at.desc())
         .limit(settings.AI_RETRIEVAL_CANDIDATES)
     )
