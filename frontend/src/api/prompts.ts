@@ -12,6 +12,8 @@ export interface Prompt {
   is_favorite: boolean
   usage_count: number
   visibility?: 'private' | 'public'
+  team_id?: number | null
+  owner_username?: string | null
   source_username?: string | null
   created_at: string
   updated_at: string
@@ -24,6 +26,8 @@ export interface PromptCreate {
   category_id?: number | null
   variables?: string[]
   tags?: string[]
+  /** 为空写个人空间，有值写入对应团队空间 */
+  team_id?: number | null
 }
 
 export interface PromptUpdate {
@@ -34,6 +38,7 @@ export interface PromptUpdate {
   variables?: string[]
   tags?: string[]
   is_favorite?: boolean
+  team_id?: number | null
 }
 
 export interface PromptListResponse {
@@ -51,6 +56,8 @@ export interface PromptListParams {
   search?: string
   sort_by?: string
   tag?: string
+  /** 团队 ID：传值时查询该团队共享提示词 */
+  team_id?: number
 }
 
 export interface RenderResponse {

@@ -13,6 +13,8 @@ class PromptCreate(BaseModel):
     variables: list[str] | None = None
     tags: list[str] | None = None
     message: str | None = None
+    # 团队知识库：为空写个人空间，有值写入对应团队空间
+    team_id: int | None = None
 
 
 class PromptUpdate(BaseModel):
@@ -24,6 +26,7 @@ class PromptUpdate(BaseModel):
     tags: list[str] | None = None
     is_favorite: bool | None = None
     message: str | None = None
+    team_id: int | None = None
 
 
 class PromptListResponse(BaseModel):
@@ -37,6 +40,8 @@ class PromptListResponse(BaseModel):
     is_favorite: bool
     usage_count: int
     visibility: str = "private"
+    team_id: int | None = None
+    owner_username: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -55,6 +60,8 @@ class PromptDetailResponse(BaseModel):
     is_favorite: bool
     usage_count: int
     visibility: str = "private"
+    team_id: int | None = None
+    owner_username: str | None = None
     source_username: str | None = None
     created_at: datetime
     updated_at: datetime

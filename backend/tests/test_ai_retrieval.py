@@ -9,6 +9,7 @@ import app.models  # noqa: F401 — 确保全部模型注册到 Base.metadata
 from app.core.database import Base
 from app.models.ai import NoteChunk
 from app.models.note import Note
+from app.models.team import Team, TeamMember
 from app.models.user import User
 from app.services.ai import retrieval
 from app.services.ai.retrieval import retrieve
@@ -136,6 +137,61 @@ def test_note_without_chunks_is_not_retrievable(tmp_path):
 
             hits = await retrieve(db, user.id, "报销多久到账")
             assert hits == []
+        await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_team_notes_enter_retrieval_scope_for_members_only(tmp_path, monkeypatch):
+    """团队知识库对成员开放检索，非成员不可见"""
+
+    async def scenario() -> None:
+        engine = _make_engine(tmp_path)
+        factory = await _init_db(engine)
+        async with factory() as db:
+            alice = User(username="alice_t", email="alice_t@example.com", password_hash="x")
+            bob = User(username="bob_t", email="bob_t@example.com", password_hash="x")
+            carol = User(username="carol_t", email="carol_t@example.com", password_hash="x")
+            db.add_all([alice, bob, carol])
+            await db.commit()
+            for account in (alice, bob, carol):
+                await db.refresh(account)
+
+            team = Team(name="研发知识库", owner_id=alice.id, invite_code="TEAM2026")
+            db.add(team)
+            await db.commit()
+            await db.refresh(team)
+            db.add_all(
+                [
+                    TeamMember(team_id=team.id, user_id=alice.id, role="owner"),
+                    TeamMember(team_id=team.id, user_id=bob.id, role="member"),
+                ]
+            )
+            note = Note(
+                user_id=alice.id,
+                team_id=team.id,
+                title="差旅报销规范",
+                content="差旅报销需在七个工作日内提交",
+            )
+            db.add(note)
+            await db.commit()
+            await db.refresh(note)
+            db.add(
+                NoteChunk(
+                    user_id=alice.id,
+                    note_id=note.id,
+                    chunk_index=0,
+                    content="差旅报销需在七个工作日内提交",
+                )
+            )
+            await db.commit()
+
+            monkeypatch.setattr(retrieval, "_vector_scores", _no_vector())
+            member_hits = await retrieve(db, bob.id, "差旅报销多久提交")
+            assert [hit.note_title for hit in member_hits] == ["差旅报销规范"]
+
+            outsider_hits = await retrieve(db, carol.id, "差旅报销多久提交")
+            assert outsider_hits == []
         await engine.dispose()
 
     asyncio.run(scenario())

@@ -16,6 +16,7 @@ from .note import Note, NoteTemplate
 from .note_reaction import NoteFavorite, NoteLike
 from .password_reset import PasswordResetToken
 from .prompt import Prompt, PromptPreset, PromptUsageLog, PromptVersion
+from .team import Team, TeamMember
 from .user import User
 
 __all__ = [
@@ -43,4 +44,6 @@ __all__ = [
     "AgentProfile",
     "AgentMemory",
     "AgentProactiveMessage",
+    "Team",
+    "TeamMember",
 ]

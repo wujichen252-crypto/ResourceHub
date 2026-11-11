@@ -20,6 +20,14 @@ class Note(Base):
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, comment="所属用户 ID（用户删除时级联删除）"
     )
+    # 团队知识库：为空表示个人笔记；团队解散后置空，笔记回落为作者个人资源
+    team_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("teams.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="所属团队 ID（NULL=个人笔记）",
+    )
     title: Mapped[str] = mapped_column(
         String(255), nullable=False, comment="笔记标题"
     )

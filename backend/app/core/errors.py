@@ -61,6 +61,13 @@ class ErrorCode(IntEnum):
     MEMORY_LIMIT_EXCEEDED = 7009
     PROACTIVE_MESSAGE_NOT_FOUND = 7010
 
+    TEAM_NOT_FOUND = 8001
+    TEAM_FORBIDDEN = 8002
+    TEAM_MEMBER_EXISTS = 8003
+    TEAM_INVITE_INVALID = 8004
+    TEAM_OWNER_CANNOT_LEAVE = 8005
+    TEAM_MEMBER_NOT_FOUND = 8006
+
 
 ERROR_MESSAGES = {
     ErrorCode.SUCCESS: "操作成功",
@@ -101,6 +108,12 @@ ERROR_MESSAGES = {
     ErrorCode.MEMORY_NOT_FOUND: "记忆不存在",
     ErrorCode.MEMORY_LIMIT_EXCEEDED: "记忆数量已达上限，请先清理部分记忆",
     ErrorCode.PROACTIVE_MESSAGE_NOT_FOUND: "主动消息不存在",
+    ErrorCode.TEAM_NOT_FOUND: "团队不存在",
+    ErrorCode.TEAM_FORBIDDEN: "仅团队成员可以访问该资源",
+    ErrorCode.TEAM_MEMBER_EXISTS: "你已经是该团队成员",
+    ErrorCode.TEAM_INVITE_INVALID: "邀请码无效",
+    ErrorCode.TEAM_OWNER_CANNOT_LEAVE: "团队创建者不能直接退出，请先删除团队",
+    ErrorCode.TEAM_MEMBER_NOT_FOUND: "团队成员不存在",
 }
 
 

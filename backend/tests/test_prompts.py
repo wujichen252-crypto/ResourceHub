@@ -2,6 +2,7 @@
 
 PROMPT_LIST_FIELDS = {"id", "title", "description", "category_id", "category_name",
                       "variables", "tags", "is_favorite", "usage_count", "visibility",
+                      "team_id", "owner_username",
                       "created_at", "updated_at"}
 PROMPT_DETAIL_FIELDS = PROMPT_LIST_FIELDS | {"content", "source_username"}
 VERSION_FIELDS = {"id", "prompt_id", "version_number", "title", "description",
