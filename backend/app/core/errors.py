@@ -31,6 +31,7 @@ class ErrorCode(IntEnum):
     TOKEN_EXPIRED = 1004
     TOKEN_INVALID = 1005
     USER_NOT_FOUND = 1006
+    USERNAME_EMAIL_MISMATCH = 1007
     WRONG_OLD_PASSWORD = 1008
 
     RESET_CODE_INVALID = 1009
@@ -84,6 +85,7 @@ ERROR_MESSAGES = {
     ErrorCode.TOKEN_EXPIRED: "Token 已过期",
     ErrorCode.TOKEN_INVALID: "Token 无效",
     ErrorCode.USER_NOT_FOUND: "用户不存在",
+    ErrorCode.USERNAME_EMAIL_MISMATCH: "用户名或邮箱不匹配",
     ErrorCode.WRONG_OLD_PASSWORD: "原密码错误",
     ErrorCode.RESET_CODE_INVALID: "验证码无效或已过期",
     ErrorCode.RESET_CODE_EXPIRED: "验证码已过期，请重新获取",
