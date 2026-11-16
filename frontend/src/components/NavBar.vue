@@ -26,7 +26,6 @@
     <div class="nav-label nav-label-lower">收藏与分类</div>
     <nav class="nav-links">
       <RouterLink class="nav-link" to="/prompts" @click="openFavorites"><el-icon><Star /></el-icon><span>收藏提示词</span></RouterLink>
-      <RouterLink class="nav-link" to="/notes" :class="{ active: activeIndex === '/notes' }" :aria-current="activeIndex === '/notes' ? 'page' : undefined"><el-icon><Collection /></el-icon><span>我的笔记</span></RouterLink>
     </nav>
 
     <div ref="footerRef" class="nav-footer">
@@ -55,7 +54,6 @@
   <div v-if="mobileOpen" class="mobile-menu">
     <RouterLink v-for="item in mainLinks" :key="item.path" :to="item.path" @click="mobileOpen = false"><el-icon><component :is="item.icon" /></el-icon>{{ item.label }}<span v-if="item.path === '/ai' && identityStore.unreadCount > 0" class="nav-badge">{{ identityStore.unreadCount > 9 ? '9+' : identityStore.unreadCount }}</span></RouterLink>
     <RouterLink to="/prompts" @click="openFavorites(); mobileOpen = false"><el-icon><Star /></el-icon>收藏提示词</RouterLink>
-    <RouterLink to="/notes" @click="mobileOpen = false"><el-icon><Collection /></el-icon>我的笔记</RouterLink>
     <RouterLink to="/settings" @click="mobileOpen = false"><el-icon><Setting /></el-icon>设置</RouterLink>
   </div>
 </template>
@@ -63,7 +61,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowDown, Collection, Cpu, DataAnalysis, Document, Grid, MagicStick, Menu, Monitor, Moon, OfficeBuilding, Plus, Search, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
+import { ArrowDown, Cpu, DataAnalysis, Document, Grid, MagicStick, Menu, Monitor, Moon, OfficeBuilding, Plus, Search, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { usePromptsStore } from '../stores/prompts'
