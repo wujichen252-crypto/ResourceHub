@@ -7,6 +7,7 @@
  */
 import { Extension } from '@tiptap/core'
 import type { Editor, Range } from '@tiptap/core'
+import { PluginKey } from '@tiptap/pm/state'
 import Suggestion, { type SuggestionProps, type SuggestionKeyDownProps } from '@tiptap/suggestion'
 import { notesApi } from '../../../api/notes'
 import type { Note } from '../../../api/notes'
@@ -31,6 +32,9 @@ export const NoteLinkSuggestion = Extension.create({
     return [
       Suggestion({
         editor,
+        // 独立插件 key：SlashCommand 已占用默认的 suggestion key，
+        // 重名会导致 ProseMirror 抛 "Adding different instances of a keyed plugin"，编辑器无法创建
+        pluginKey: new PluginKey('noteLinkSuggestion'),
         char: '[[',
         startOfLine: false,
         // 代码块与行内代码中不触发
