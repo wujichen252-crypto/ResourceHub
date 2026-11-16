@@ -46,8 +46,10 @@ export const NoteLinkSuggestion = Extension.create({
               try {
                 const data = await notesApi.completion(query.trim(), SUGGEST_LIMIT)
                 lastItems = data.items
+                lastFailed = false
               } catch {
                 lastItems = []
+                lastFailed = true
               }
               resolve(lastItems)
             }, SEARCH_DEBOUNCE_MS)
@@ -83,6 +85,7 @@ export const NoteLinkSuggestion = Extension.create({
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let lastQuery = ''
+let lastFailed = false
 let selectedIndex = 0
 let popup: HTMLDivElement | null = null
 let activeCommand: ((item: SuggestionItem) => void) | null = null
@@ -96,7 +99,7 @@ function renderList(items: SuggestionItem[], query: string) {
   if (!items.length) {
     const empty = document.createElement('div')
     empty.className = 'rh-suggest-empty'
-    empty.textContent = '没有匹配的笔记'
+    empty.textContent = lastFailed ? '搜索失败，请稍后重试' : '没有匹配的笔记'
     popup.appendChild(empty)
     return
   }
@@ -194,6 +197,7 @@ function renderSuggestionMenu() {
       popup = null
       activeCommand = null
       lastQuery = ''
+      lastFailed = false
     },
   }
 }
