@@ -30,6 +30,10 @@ class NoteLink(Base):
     target_title: Mapped[str] = mapped_column(
         String(255), nullable=False, comment="被引用笔记标题快照（链接的唯一事实来源，目标改名不回写）"
     )
+    context: Mapped[str | None] = mapped_column(
+        String(200), nullable=True,
+        comment="引用上下文片段：引用处所在段落/行的纯文本（取首个引用处），供反链面板展示",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), comment="创建时间"
     )

@@ -48,3 +48,6 @@ button, input, textarea, select { font: inherit; } a { color: var(--rh-primary);
 .rh-suggest-item { display: block; width: 100%; padding: 7px 10px; border: 0; border-radius: var(--rh-radius-xs); background: transparent; color: var(--rh-text-primary); font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background-color var(--rh-duration-fast) var(--rh-transition-fast); }
 .rh-suggest-item:hover, .rh-suggest-item.is-active { background: var(--rh-bg-hover); color: var(--rh-primary); }
 .rh-suggest-empty { padding: 10px; color: var(--rh-text-tertiary); font-size: 12px; text-align: center; }
+.rh-suggest-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rh-suggest-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rh-suggest-badge { flex-shrink: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 6px; border-radius: var(--rh-radius-xs); background: var(--rh-bg-active); color: var(--rh-text-tertiary); font-size: 11px; }

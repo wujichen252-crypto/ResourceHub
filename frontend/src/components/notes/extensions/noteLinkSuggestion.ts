@@ -9,19 +9,15 @@ import { Extension } from '@tiptap/core'
 import type { Editor, Range } from '@tiptap/core'
 import { PluginKey } from '@tiptap/pm/state'
 import Suggestion, { type SuggestionProps, type SuggestionKeyDownProps } from '@tiptap/suggestion'
-import { notesApi } from '../../../api/notes'
-import type { Note } from '../../../api/notes'
+import { notesApi, type NoteCompletionItem } from '../../../api/notes'
 
-interface NoteSuggestionItem {
-  id: number
-  title: string
-}
+type SuggestionItem = NoteCompletionItem
 
 const SEARCH_DEBOUNCE_MS = 200
 const SUGGEST_LIMIT = 8
 
 // 当前已解析的候选（onKeyDown 阶段取用）
-let lastItems: NoteSuggestionItem[] = []
+let lastItems: SuggestionItem[] = []
 
 export const NoteLinkSuggestion = Extension.create({
   name: 'noteLinkSuggestion',
@@ -43,15 +39,13 @@ export const NoteLinkSuggestion = Extension.create({
           if ($from.parent.type.spec.code) return false
           return !$from.marks().some((mark) => mark.type.name === 'code')
         },
-        items: ({ query }): Promise<NoteSuggestionItem[]> =>
+        items: ({ query }): Promise<SuggestionItem[]> =>
           new Promise((resolve) => {
             if (searchTimer) clearTimeout(searchTimer)
             searchTimer = setTimeout(async () => {
-              const params: { search?: string; page_size: number } = { page_size: SUGGEST_LIMIT }
-              if (query.trim()) params.search = query.trim()
               try {
-                const data = await notesApi.list(params)
-                lastItems = data.items.map((note: Note) => ({ id: note.id, title: note.title }))
+                const data = await notesApi.completion(query.trim(), SUGGEST_LIMIT)
+                lastItems = data.items
               } catch {
                 lastItems = []
               }
@@ -65,7 +59,7 @@ export const NoteLinkSuggestion = Extension.create({
         }: {
           editor: Editor
           range: Range
-          props: NoteSuggestionItem
+          props: SuggestionItem
         }) => {
           // 插入 chip + 尾随空格，保持输入连续性
           ed.chain()
@@ -91,9 +85,9 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null
 let lastQuery = ''
 let selectedIndex = 0
 let popup: HTMLDivElement | null = null
-let activeCommand: ((item: NoteSuggestionItem) => void) | null = null
+let activeCommand: ((item: SuggestionItem) => void) | null = null
 
-function renderList(items: NoteSuggestionItem[], query: string) {
+function renderList(items: SuggestionItem[], query: string) {
   if (!popup) return
   // query 变化时复位选中项，避免键盘焦点落在已被过滤掉的条目上
   if (query !== lastQuery) selectedIndex = 0
@@ -110,7 +104,18 @@ function renderList(items: NoteSuggestionItem[], query: string) {
     const row = document.createElement('button')
     row.type = 'button'
     row.className = 'rh-suggest-item' + (index === selectedIndex ? ' is-active' : '')
-    row.textContent = item.title
+    // 标题 + 团队来源标记（个人笔记不显示）
+    const label = document.createElement('span')
+    label.className = 'rh-suggest-label'
+    label.textContent = item.title
+    row.appendChild(label)
+    if (item.team_name) {
+      const badge = document.createElement('span')
+      badge.className = 'rh-suggest-badge'
+      badge.textContent = item.team_name
+      badge.title = `来自团队「${item.team_name}」`
+      row.appendChild(badge)
+    }
     row.addEventListener('mousedown', (event) => {
       // mousedown 先于编辑器 blur，避免下拉闪没
       event.preventDefault()
@@ -120,7 +125,7 @@ function renderList(items: NoteSuggestionItem[], query: string) {
   })
 }
 
-function positionMenu(props: SuggestionProps<NoteSuggestionItem>) {
+function positionMenu(props: SuggestionProps<SuggestionItem>) {
   if (!popup) return
   const rect = props.clientRect?.()
   if (!rect) return
@@ -138,7 +143,7 @@ function positionMenu(props: SuggestionProps<NoteSuggestionItem>) {
 
 function renderSuggestionMenu() {
   return {
-    onStart(props: SuggestionProps<NoteSuggestionItem>) {
+    onStart(props: SuggestionProps<SuggestionItem>) {
       popup = document.createElement('div')
       popup.className = 'rh-suggest-menu'
       popup.setAttribute('role', 'listbox')
@@ -148,7 +153,7 @@ function renderSuggestionMenu() {
       renderList(props.items, props.query)
       positionMenu(props)
     },
-    onUpdate(props: SuggestionProps<NoteSuggestionItem>) {
+    onUpdate(props: SuggestionProps<SuggestionItem>) {
       activeCommand = props.command
       renderList(props.items, props.query)
       positionMenu(props)

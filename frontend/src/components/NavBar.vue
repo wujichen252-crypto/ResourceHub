@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowDown, Cpu, DataAnalysis, Document, Grid, MagicStick, Menu, Monitor, Moon, OfficeBuilding, Plus, Search, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
+import { ArrowDown, Connection, Cpu, DataAnalysis, Document, Grid, MagicStick, Menu, Monitor, Moon, OfficeBuilding, Plus, Search, Setting, Star, Sunny, SwitchButton } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
 import { usePromptsStore } from '../stores/prompts'
@@ -73,8 +73,8 @@ const router = useRouter(); const route = useRoute(); const authStore = useAuthS
 const { isDark, themeLabel, toggleTheme } = useTheme()
 const { openSearch } = useGlobalSearch()
 const userMenuOpen = ref(false); const mobileOpen = ref(false); const footerRef = ref<HTMLElement | null>(null)
-const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/roi', label: 'ROI 看板', icon: DataAnalysis }, { path: '/ai', label: 'AI 工作台', icon: Cpu }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }, { path: '/teams', label: '团队空间', icon: OfficeBuilding }, { path: '/plaza', label: '资源广场', icon: Grid }]
-const activeIndex = computed(() => route.path.startsWith('/ai') ? '/ai' : route.path.startsWith('/roi') ? '/roi' : route.path.startsWith('/notes') ? '/notes' : route.path.startsWith('/prompts') ? '/prompts' : route.path.startsWith('/teams') ? '/teams' : route.path.startsWith('/plaza') ? '/plaza' : route.path.startsWith('/settings') ? '/settings' : '/dashboard')
+const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/roi', label: 'ROI 看板', icon: DataAnalysis }, { path: '/ai', label: 'AI 工作台', icon: Cpu }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/graph', label: '知识图谱', icon: Connection }, { path: '/prompts', label: '提示词库', icon: MagicStick }, { path: '/teams', label: '团队空间', icon: OfficeBuilding }, { path: '/plaza', label: '资源广场', icon: Grid }]
+const activeIndex = computed(() => route.path.startsWith('/ai') ? '/ai' : route.path.startsWith('/roi') ? '/roi' : route.path.startsWith('/notes') ? '/notes' : route.path.startsWith('/graph') ? '/graph' : route.path.startsWith('/prompts') ? '/prompts' : route.path.startsWith('/teams') ? '/teams' : route.path.startsWith('/plaza') ? '/plaza' : route.path.startsWith('/settings') ? '/settings' : '/dashboard')
 // /prompts 路径下有两个入口（提示词库 / 收藏提示词），按收藏视图状态区分高亮，避免双亮
 const favoritesActive = computed(() => activeIndex.value === '/prompts' && promptsStore.showFavoritesOnly)
 const promptsActive = computed(() => activeIndex.value === '/prompts' && !promptsStore.showFavoritesOnly)

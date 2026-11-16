@@ -62,7 +62,10 @@
             @click.stop="emitOpen({ noteId: item.id, title: item.title })"
           >
             <el-icon><Link /></el-icon>
-            <span class="backlink-title">{{ item.title }}</span>
+            <span class="backlink-main">
+              <span class="backlink-title">{{ item.title }}</span>
+              <span v-if="item.context" class="backlink-context">{{ item.context }}</span>
+            </span>
             <span class="backlink-time">{{ formatRelative(item.updated_at) }}</span>
           </button>
         </div>
@@ -288,12 +291,27 @@ async function handleDelete() {
   color: var(--rh-primary);
 }
 
-.backlink-title {
+.backlink-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backlink-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 引用处上下文片段：单行截断，弱化展示 */
+.backlink-context {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--rh-text-tertiary);
+  font-size: 12px;
 }
 
 .backlink-time {

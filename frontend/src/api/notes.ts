@@ -77,6 +77,30 @@ export interface NoteBacklink {
   id: number
   title: string
   updated_at: string
+  /** 引用处上下文片段（引用所在段落/行），可能为空 */
+  context?: string | null
+}
+
+/** 链接补全候选（个人 + 团队空间） */
+export interface NoteCompletionItem {
+  id: number
+  title: string
+  team_id: number | null
+  team_name: string | null
+}
+
+/** 知识图谱节点 */
+export interface GraphNode {
+  id: number
+  title: string
+  team_id: number | null
+  team_name: string | null
+}
+
+/** 知识图谱连线 */
+export interface GraphLink {
+  source: number
+  target: number
 }
 
 export const notesApi = {
@@ -122,6 +146,16 @@ export const notesApi = {
     return http.get('/notes/resolve', {
       params: { title, ...(teamId != null ? { team_id: teamId } : {}) },
     })
+  },
+
+  /** 链接补全候选：个人笔记 + 所在团队空间 */
+  completion(q = '', limit = 8): Promise<{ items: NoteCompletionItem[] }> {
+    return http.get('/notes/completion', { params: { q, limit } })
+  },
+
+  /** 知识图谱：节点与连线 */
+  graph(): Promise<{ nodes: GraphNode[]; links: GraphLink[] }> {
+    return http.get('/notes/graph')
   },
 
   exportMarkdown(): Promise<Blob> {

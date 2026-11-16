@@ -37,6 +37,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Notes/NotesPage.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/graph',
+    name: 'GraphView',
+    component: () => import('../views/GraphView.vue'),
+    meta: { requiresAuth: true },
+  },
   // 旧路由向后兼容重定向
   {
     path: '/notes/:id',

@@ -156,3 +156,118 @@ def test_note_link_service_ignores_self_reference(client, auth, db_session):
             assert rows == []
 
     asyncio.run(_check())
+
+
+def test_backlink_context_captured(client, auth):
+    """引用上下文片段：markdown 轨取引用所在行，backlinks 返回 context"""
+    target = _create_note(client, auth, title="图谱算法", content="节点与边")
+    _create_note(
+        client, auth, title="算法笔记",
+        content="第一段没有引用\n详见 [[图谱算法]] 的邻接表实现",
+    )
+    resp = client.get(f"/api/notes/{target['id']}/backlinks", headers=auth)
+    item = resp.json()["data"]["items"][0]
+    assert item["context"] == "详见 [[图谱算法]] 的邻接表实现"
+
+
+def test_backlink_context_json_track(client, auth):
+    """json 轨：noteLink 节点所在段落文本作为上下文"""
+    target = _create_note(client, auth, title="提示词工程", content="基础")
+    doc = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [
+                    {"type": "text", "text": "写好提示词先读 "},
+                    {"type": "noteLink", "attrs": {"title": "提示词工程", "noteId": target["id"]}},
+                    {"type": "text", "text": " 里的原则"},
+                ],
+            }
+        ],
+    }
+    _create_note(
+        client, auth, title="学习心得",
+        content="<p>占位</p>", content_json=doc,
+    )
+    resp = client.get(f"/api/notes/{target['id']}/backlinks", headers=auth)
+    item = resp.json()["data"]["items"][0]
+    assert item["context"] == "写好提示词先读 提示词工程 里的原则"
+
+
+def test_completion_covers_team_notes(client, auth):
+    """补全候选覆盖团队空间：个人笔记与团队笔记都出现在候选中"""
+    # 个人笔记
+    _create_note(client, auth, title="个人笔记 Alpha", content="x")
+    # 建团队 + 邀请自己以外……直接用 teams API：建团（auth 是 owner），团队里发笔记
+    resp = client.post("/api/teams", json={"name": "图谱小队"}, headers=auth)
+    team_id = resp.json()["data"]["id"]
+    resp = client.post(
+        "/api/notes",
+        json={"title": "团队笔记 Beta", "content": "y", "team_id": team_id},
+        headers=auth,
+    )
+    assert resp.status_code == 201, resp.text
+
+    resp = client.get("/api/notes/completion", params={"q": ""}, headers=auth)
+    titles = [item["title"] for item in resp.json()["data"]["items"]]
+    assert "个人笔记 Alpha" in titles
+    assert "团队笔记 Beta" in titles
+    beta = next(i for i in resp.json()["data"]["items"] if i["title"] == "团队笔记 Beta")
+    assert beta["team_name"] == "图谱小队"
+
+    # 关键词过滤
+    resp = client.get("/api/notes/completion", params={"q": "Beta"}, headers=auth)
+    titles = [item["title"] for item in resp.json()["data"]["items"]]
+    assert titles == ["团队笔记 Beta"]
+
+
+def test_note_id_resolution_accepts_team_target(client, auth):
+    """个人笔记引用团队笔记（chip 带 noteId）：按 ID 解析成功，反链可见"""
+    resp = client.post("/api/teams", json={"name": "跨链团队"}, headers=auth)
+    team_id = resp.json()["data"]["id"]
+    team_note = client.post(
+        "/api/notes",
+        json={"title": "团队资源", "content": "共享内容", "team_id": team_id},
+        headers=auth,
+    ).json()["data"]
+    doc = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [
+                    {"type": "text", "text": "见 "},
+                    {"type": "noteLink", "attrs": {"title": "团队资源", "noteId": team_note["id"]}},
+                ],
+            }
+        ],
+    }
+    personal = client.post(
+        "/api/notes",
+        json={
+            "title": "我的索引",
+            "content": "<p>见 团队资源</p>",
+            "content_json": doc,
+            "tags": [],
+        },
+        headers=auth,
+    ).json()["data"]
+
+    resp = client.get(f"/api/notes/{team_note['id']}/backlinks", headers=auth)
+    items = resp.json()["data"]["items"]
+    assert resp.json()["data"]["total"] == 1
+    assert items[0]["id"] == personal["id"]
+
+
+def test_graph_endpoint(client, auth):
+    """图谱接口：节点含可见笔记，连线来自 note_links 且两端都在节点集内"""
+    a = _create_note(client, auth, title="图A", content="a")
+    b = _create_note(client, auth, title="图B", content="引用 [[图A]]")
+    resp = client.get("/api/notes/graph", headers=auth)
+    data = resp.json()["data"]
+    ids = {n["id"] for n in data["nodes"]}
+    assert {a["id"], b["id"]} <= ids
+    assert {"source": b["id"], "target": a["id"]} in [
+        {"source": l["source"], "target": l["target"]} for l in data["links"]
+    ]

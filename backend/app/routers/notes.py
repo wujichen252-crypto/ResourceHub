@@ -29,7 +29,12 @@ from app.schemas.note import (
 from app.services import note_markdown_service
 from app.services.ai.index_service import index_note_in_background
 from app.services.category_service import CategoryService
-from app.services.note_link_service import get_backlinks, resolve_note_title
+from app.services.note_link_service import (
+    get_backlinks,
+    get_completion_candidates,
+    get_graph_data,
+    resolve_note_title,
+)
 from app.services.note_service import NoteService
 from app.services.search_service import remove_note_from_search, sync_note_to_search
 
@@ -238,6 +243,28 @@ async def batch_notes(
     return success_response(
         data={"affected": len(notes)}, msg=f"已处理 {len(notes)} 篇笔记"
     )
+
+
+@router.get("/completion")
+async def completion_candidates(
+    q: str = Query(default="", max_length=100),
+    limit: int = Query(default=8, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """链接补全候选：个人笔记 + 所在团队空间的笔记，带团队名标记"""
+    items = await get_completion_candidates(db, current_user.id, q, limit)
+    return success_response(data={"items": items}, msg="获取补全候选成功")
+
+
+@router.get("/graph")
+async def note_graph(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """知识图谱：可见笔记为节点（个人 + 所在团队），note_links 为连线"""
+    data = await get_graph_data(db, current_user.id)
+    return success_response(data=data, msg="获取知识图谱成功")
 
 
 @router.get("/resolve")

@@ -6,7 +6,7 @@
  */
 import { onMounted, onUnmounted, watch, type Ref } from 'vue'
 import * as echarts from 'echarts/core'
-import { BarChart, HeatmapChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
+import { BarChart, GraphChart, HeatmapChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
 import {
   CalendarComponent,
   GridComponent,
@@ -19,6 +19,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 
 echarts.use([
   BarChart,
+  GraphChart,
   HeatmapChart,
   LineChart,
   PieChart,
@@ -55,8 +56,10 @@ export interface UseChartOptions {
   buildOption: () => Record<string, unknown>
   /** option 依赖的响应式数据源，变化时 setOption */
   watchSource?: Ref<unknown>
-  /** 图表点击事件回调 */
+  /** 图表点击事件回调（简化版：只回传 name） */
   onClick?: (name: string) => void
+  /** 需要完整 ECharts 事件能力时（如按 data 跳转），通过实例自行注册监听 */
+  onInstance?: (chart: echarts.ECharts) => void
 }
 
 export function useChart(elRef: Ref<HTMLElement | null | undefined>, opts: UseChartOptions) {
@@ -72,6 +75,7 @@ export function useChart(elRef: Ref<HTMLElement | null | undefined>, opts: UseCh
   function setup(el: HTMLElement) {
     chart = echarts.init(el)
     render()
+    if (opts.onInstance) opts.onInstance(chart)
     if (opts.onClick) {
       chart.on('click', (params) => {
         const name = typeof params.name === 'string' ? params.name : ''
