@@ -441,15 +441,9 @@ defineExpose({ manualSave, getInlineContext, insertBelow, replaceSelection })
   flex: 1;
   overflow-y: auto;
   padding: 22px 30px;
-  border: 1px solid transparent;
   border-radius: 0 0 var(--rh-radius-md) var(--rh-radius-md);
   transition: var(--rh-transition-all-normal);
   position: relative;
-}
-
-.editor-body:focus-within {
-  border-color: var(--rh-primary);
-  box-shadow: var(--rh-focus-ring);
 }
 
 /* 悬浮拖拽手柄 */
@@ -492,6 +486,12 @@ defineExpose({ manualSave, getInlineContext, insertBelow, replaceSelection })
 
 :deep(.ProseMirror) {
   min-height: 400px;
+}
+
+/* 焦点指示例外：编辑区光标即焦点指示器，不再叠加 focus 框（全站 :focus-visible 会命中此处） */
+:deep(.ProseMirror:focus),
+:deep(.ProseMirror:focus-visible) {
+  outline: none;
 }
 
 :deep(.ProseMirror p.is-editor-empty:first-child::before) {
