@@ -33,8 +33,36 @@ export interface StatsOverview {
   usage_heatmap: HeatmapPoint[]
 }
 
+/** 往年今日笔记条目 */
+export interface OnThisDayItem {
+  id: number
+  title: string
+  years_ago: number
+  created_at: string
+}
+
+/** 昨日遗留任务条目 */
+export interface PendingTaskItem {
+  note_id: number
+  note_title: string
+  task: string
+}
+
+/** /api/stats/daily-review 响应契约 */
+export interface DailyReview {
+  on_this_day: OnThisDayItem[]
+  on_this_day_total: number
+  this_week: number
+  streak: number
+  pending_tasks: PendingTaskItem[]
+}
+
 export const statsApi = {
   overview(): Promise<StatsOverview> {
     return http.get('/stats/overview')
+  },
+
+  dailyReview(): Promise<DailyReview> {
+    return http.get('/stats/daily-review')
   },
 }

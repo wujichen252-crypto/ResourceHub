@@ -34,3 +34,17 @@ button, input, textarea, select { font: inherit; } a { color: var(--rh-primary);
     --rh-border-light: var(--rh-border-strong);
   }
 }
+
+/* ── 笔记双向链接 chip ─────────────────────────────────────
+   编辑器与阅读态共用同一份样式（global.css 保证 body 下的浮动层与 v-html 内容都能命中） */
+.note-wikilink { display: inline-block; padding: 1px 8px; margin: 0 2px; border-radius: var(--rh-radius-xs); background: var(--rh-primary-subtle); color: var(--rh-primary); font-size: 0.94em; line-height: 1.5; cursor: pointer; border: 1px solid transparent; transition: background-color var(--rh-duration-fast) var(--rh-transition-fast), border-color var(--rh-duration-fast) var(--rh-transition-fast); }
+.note-wikilink:hover { border-color: var(--rh-primary-muted); background: var(--rh-primary-lighter); }
+/* 死链（目标不存在）：虚线边框提示可创建 */
+.note-wikilink.is-dead { background: transparent; border: 1px dashed var(--rh-border-strong); color: var(--rh-text-secondary); }
+.note-wikilink.is-dead:hover { color: var(--rh-primary); border-color: var(--rh-primary-muted); background: var(--rh-primary-subtle); }
+
+/* ── [[ 笔记自动补全下拉（body 浮动层）─────────────────── */
+.rh-suggest-menu { position: fixed; z-index: 200; min-width: 220px; max-width: 320px; max-height: 240px; overflow-y: auto; padding: 6px; border: 1px solid var(--rh-border); border-radius: var(--rh-radius-sm); background: var(--rh-bg-elevated); box-shadow: var(--rh-shadow-md); }
+.rh-suggest-item { display: block; width: 100%; padding: 7px 10px; border: 0; border-radius: var(--rh-radius-xs); background: transparent; color: var(--rh-text-primary); font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background-color var(--rh-duration-fast) var(--rh-transition-fast); }
+.rh-suggest-item:hover, .rh-suggest-item.is-active { background: var(--rh-bg-hover); color: var(--rh-primary); }
+.rh-suggest-empty { padding: 10px; color: var(--rh-text-tertiary); font-size: 12px; text-align: center; }

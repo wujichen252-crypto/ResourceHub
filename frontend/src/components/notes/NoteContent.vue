@@ -89,6 +89,7 @@
         v-model="editContent"
         :content-json="editContentJson"
         :note-id="editingNoteId"
+        :on-open-note="handleEditorOpenNote"
         @update:content-json="(json) => (editContentJson = json as Record<string, any>)"
         @save="handleSave"
         @selection-change="handleSelectionChange"
@@ -238,6 +239,7 @@
         @delete="handleDelete"
         @toggle-pin="handleTogglePin"
         @toggle-publish="handleTogglePublish"
+        @open-note="handleOpenNote"
       />
     </div>
   </div>
@@ -756,6 +758,69 @@ watch(() => props.noteId, (newId) => {
   }
   openNote(newId)
 }, { immediate: true })
+
+// ── 双向链接跳转 ──────────────────────────────────
+/**
+ * 打开链接指向的笔记：
+ * - 已解析的 noteId → 直接打开
+ * - 只有标题 → 先按标题解析；未命中时提供「创建同名笔记」
+ * 阅读态直接跳转；编辑态先静默保存再跳，避免自动保存竞态
+ */
+async function handleOpenNote(payload: { noteId: number | null; title: string }) {
+  const title = payload.title.trim()
+  if (payload.noteId != null && payload.noteId > 0) {
+    await saveBeforeJump()
+    emit('update:noteId', payload.noteId)
+    return
+  }
+  if (!title) return
+  try {
+    const resolved = await notesApi.resolveTitle(title)
+    await saveBeforeJump()
+    emit('update:noteId', resolved.id)
+    return
+  } catch {
+    // 404 → 走创建流程
+  }
+  try {
+    await ElMessageBox.confirm(
+      `还没有笔记「${title}」，要创建它吗？`,
+      '笔记不存在',
+      { confirmButtonText: '创建', cancelButtonText: '取消', type: 'info' },
+    )
+  } catch {
+    return
+  }
+  try {
+    const created = await notesStore.createNote({
+      title,
+      content: '',
+      category_id: null,
+      tags: [],
+    })
+    ElMessage.success(`已创建「${title}」`)
+    await saveBeforeJump()
+    emit('update:noteId', created.id)
+  } catch {
+    // 拦截器已提示
+  }
+}
+
+/** 编辑态点击链接：先落库当前内容，避免跳转后自动保存把旧内容写进新笔记 */
+async function saveBeforeJump() {
+  if (!(isEditing.value || isCreating.value)) return
+  cancelAutoSave()
+  if (!isDirty.value) return
+  if (!editTitle.value.trim() || !editContent.value.trim()) return
+  await autoSave()
+}
+
+/** 编辑器内点击 chip：同 handleOpenNote，但跳转前必须先保存 */
+async function handleEditorOpenNote(payload: { noteId: number | null; title: string }) {
+  await saveBeforeJump()
+  isDirty.value = false
+  await handleOpenNote(payload)
+}
 
 function selectNote(note: Note) {
   emit('update:noteId', note.id)

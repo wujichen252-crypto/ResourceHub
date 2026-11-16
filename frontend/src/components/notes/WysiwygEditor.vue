@@ -95,6 +95,8 @@ import { List, ChatLineRound } from '@element-plus/icons-vue'
 
 import { BlockId } from './extensions/BlockId'
 import { SlashCommand } from './extensions/slashCommand'
+import { NoteLink } from './extensions/NoteLink'
+import { NoteLinkSuggestion } from './extensions/noteLinkSuggestion'
 import {
   findTopBlockFromDom, moveTopBlock, posToDomRect,
 } from './extensions/topBlockUtils'
@@ -105,6 +107,8 @@ const props = defineProps<{
   /** TipTap JSON（权威）；旧 markdown 笔记不传 */
   contentJson?: unknown | null
   noteId?: number
+  /** 双向链接：点击编辑器中的链接 chip 时触发（noteId 为空表示死链，由外层提供创建流程） */
+  onOpenNote?: (payload: { noteId: number | null; title: string }) => void
 }>()
 
 const emit = defineEmits<{
@@ -148,7 +152,23 @@ const editor = useEditor({
     CharacterCount as any,
     BlockId,
     SlashCommand,
+    NoteLink,
+    NoteLinkSuggestion,
   ],
+  // 双向链接 chip 点击：读取 DOM 上的 data 属性触发外层跳转/创建流程
+  editorProps: {
+    handleClick: (_view: unknown, _pos: unknown, event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      const chip = target?.closest?.('[data-type="noteLink"]') as HTMLElement | null
+      if (!chip) return false
+      const noteIdRaw = chip.getAttribute('data-note-id')
+      props.onOpenNote?.({
+        noteId: noteIdRaw ? Number(noteIdRaw) : null,
+        title: chip.getAttribute('data-note-title') || '',
+      })
+      return true
+    },
+  },
   onUpdate: ({ editor: e }) => {
     if (isSaving) return
     const html = e.getHTML()

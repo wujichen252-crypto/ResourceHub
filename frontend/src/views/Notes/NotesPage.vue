@@ -21,14 +21,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import NoteTree from '../../components/notes/NoteTree.vue'
 import NoteContent from '../../components/notes/NoteContent.vue'
 import { useNotesStore } from '../../stores/notes'
 
+const route = useRoute()
 const notesStore = useNotesStore()
 const selectedFolderId = ref<number | null>(null)
 const selectedNoteId = ref<number | null>(null)
+
+// 深链支持：/notes?note=<id>（Dashboard 每日回顾 / 双向链接跳转入口）
+onMounted(() => {
+  const noteParam = Number(route.query.note)
+  if (Number.isInteger(noteParam) && noteParam > 0) {
+    selectedNoteId.value = noteParam
+  }
+})
 
 function handleSelectFolder(folderId: number | null) {
   selectedFolderId.value = folderId

@@ -29,6 +29,7 @@ from app.schemas.note import (
 from app.services import note_markdown_service
 from app.services.ai.index_service import index_note_in_background
 from app.services.category_service import CategoryService
+from app.services.note_link_service import get_backlinks, resolve_note_title
 from app.services.note_service import NoteService
 from app.services.search_service import remove_note_from_search, sync_note_to_search
 
@@ -237,6 +238,35 @@ async def batch_notes(
     return success_response(
         data={"affected": len(notes)}, msg=f"已处理 {len(notes)} 篇笔记"
     )
+
+
+@router.get("/resolve")
+async def resolve_note_by_title(
+    title: str = Query(min_length=1, max_length=255),
+    team_id: int | None = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """按标题解析笔记 ID（阅读页点击链接跳转用）；未找到返回 404"""
+    note = await resolve_note_title(db, title.strip(), current_user.id, team_id)
+    if note is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": ErrorCode.NOTE_NOT_FOUND, "message": "未找到同名笔记"},
+        )
+    return success_response(data={"id": note.id, "title": note.title}, msg="解析成功")
+
+
+@router.get("/{note_id}/backlinks")
+async def get_note_backlinks(
+    note_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """反向链接：引用当前笔记的其他笔记（按查看者可见性过滤）"""
+    note = await service.get_note(db, note_id, current_user.id)
+    items = await get_backlinks(db, note, current_user.id)
+    return success_response(data={"items": items, "total": len(items)}, msg="获取反向链接成功")
 
 
 @router.get("/{note_id}")

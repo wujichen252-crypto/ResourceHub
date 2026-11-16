@@ -72,6 +72,13 @@ export interface NoteBatchRequest {
   tags?: string[]
 }
 
+/** 反向链接条目（引用当前笔记的其他笔记） */
+export interface NoteBacklink {
+  id: number
+  title: string
+  updated_at: string
+}
+
 export const notesApi = {
   list(params?: NoteListParams): Promise<NoteListResponse> {
     return http.get('/notes', { params })
@@ -103,6 +110,18 @@ export const notesApi = {
 
   batch(data: NoteBatchRequest): Promise<{ affected: number }> {
     return http.post('/notes/batch', data)
+  },
+
+  /** 反向链接：引用该笔记的其他笔记（按查看者可见性过滤） */
+  backlinks(id: number): Promise<{ items: NoteBacklink[]; total: number }> {
+    return http.get(`/notes/${id}/backlinks`)
+  },
+
+  /** 按标题解析笔记（点击双向链接跳转用）；未命中时后端返回 404 */
+  resolveTitle(title: string, teamId?: number): Promise<{ id: number; title: string }> {
+    return http.get('/notes/resolve', {
+      params: { title, ...(teamId != null ? { team_id: teamId } : {}) },
+    })
   },
 
   exportMarkdown(): Promise<Blob> {

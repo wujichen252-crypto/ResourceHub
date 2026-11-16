@@ -9,6 +9,7 @@ from app.core.errors import ErrorCode
 from app.models.category import Category
 from app.models.note import Note
 from app.schemas.note import NoteCreate, NoteUpdate
+from app.services.note_link_service import refresh_target_titles, sync_note_links
 from app.services.search_service import search_service
 from app.services.tag_service import dump_tags, parse_tags
 from app.services.team_service import TeamService
@@ -164,6 +165,8 @@ class NoteService:
         db.add(note)
         await db.commit()
         await db.refresh(note)
+        # 提取正文中的 [[标题]] 引用并建立双向链接关系
+        await sync_note_links(db, note)
         return note
 
     async def import_or_replace_note(
@@ -185,6 +188,7 @@ class NoteService:
             _apply_dual_track(note, data.content, data.content_json)
             await db.commit()
             await db.refresh(note)
+            await sync_note_links(db, note)
             return note, True
 
         return await self.create_note(db, user_id, data), False
@@ -194,6 +198,7 @@ class NoteService:
     ) -> Note:
         note = await self.get_note(db, note_id, user_id, for_write=True)
         update_data = data.model_dump(exclude_unset=True)
+        old_title = note.title
         # 资源归属变更（个人 ↔ 团队）只允许作者本人操作，且需目标团队身份校验
         if "team_id" in update_data and update_data["team_id"] != note.team_id:
             if note.user_id != user_id:
@@ -211,8 +216,10 @@ class NoteService:
             update_data["tags"] = (
                 json.dumps(data.tags, ensure_ascii=False) if data.tags else None
             )
-        # 双轨字段单独走 _apply_dual_track（含 JSON 序列化与块 id 校验），不走 setattr
-        if "content" in update_data or "content_json" in update_data:
+        # 双轨字段单独走 _apply_dual_track（含 JSON 序列化与块 id 校验），不走 setattr。
+        # 注意先记录内容是否变化：pop 之后 update_data 里已无 content 字段，不能用 in 判断
+        content_changed = "content" in update_data or "content_json" in update_data
+        if content_changed:
             _apply_dual_track(
                 note, update_data.pop("content", note.content), update_data.pop("content_json", None)
             )
@@ -220,6 +227,14 @@ class NoteService:
             setattr(note, key, value)
         await db.commit()
         await db.refresh(note)
+        # 标题或正文变化都可能改变链接关系，纯标签/目录变更无需重建
+        if content_changed or "title" in update_data:
+            await sync_note_links(db, note)
+        # 目标改名时同步刷新引用表中该笔记的标题快照（target_title），
+        # 保证反向链接面板显示新标题；来源正文中的旧文本不回写（Obsidian 同样如此），
+        # 来源下次保存时会按 noteId 或新标题重新解析
+        if note.title != old_title:
+            await refresh_target_titles(db, note, old_title)
         return note
 
     async def delete_note(self, db: AsyncSession, note_id: int, user_id: int) -> None:

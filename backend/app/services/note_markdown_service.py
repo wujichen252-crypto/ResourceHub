@@ -33,8 +33,12 @@ def _safe_filename(title: str, note_id: int) -> str:
 
 
 def _inline_markdown(node: dict) -> str:
-    """行内节点（text / hardBreak / image）序列化"""
+    """行内节点（text / hardBreak / image / noteLink）序列化"""
     node_type = node.get("type")
+    if node_type == "noteLink":
+        # 双向链接导出为 Obsidian 兼容的 wikilink
+        title = str((node.get("attrs") or {}).get("title") or "").strip()
+        return f"[[{title}]]" if title else ""
     if node_type == "text":
         text = node.get("text") or ""
         for mark in reversed(node.get("marks") or []):

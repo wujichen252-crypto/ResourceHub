@@ -13,6 +13,7 @@ from .ai import (
 )
 from .category import Category
 from .note import Note, NoteTemplate
+from .note_link import NoteLink
 from .note_reaction import NoteFavorite, NoteLike
 from .password_reset import PasswordResetToken
 from .prompt import Prompt, PromptPreset, PromptUsageLog, PromptVersion
@@ -25,6 +26,7 @@ __all__ = [
     "Category",
     "Note",
     "NoteTemplate",
+    "NoteLink",
     "NoteLike",
     "NoteFavorite",
     "Prompt",
