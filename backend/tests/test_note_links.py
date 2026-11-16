@@ -271,3 +271,47 @@ def test_graph_endpoint(client, auth):
     assert {"source": b["id"], "target": a["id"]} in [
         {"source": l["source"], "target": l["target"]} for l in data["links"]
     ]
+
+
+def test_completion_and_graph_isolated_between_users(client, auth):
+    """越权回归：用户 B 的补全候选与图谱不得包含用户 A 的个人笔记"""
+    _create_note(client, auth, title="Alice 私密笔记", content="secret")
+
+    from tests.conftest import register_user
+    bob = register_user(client, "bob_iso_01")
+    resp = client.get("/api/notes/completion", params={"q": ""}, headers=bob)
+    titles = [item["title"] for item in resp.json()["data"]["items"]]
+    assert "Alice 私密笔记" not in titles
+
+    resp = client.get("/api/notes/graph", headers=bob)
+    node_titles = [n["title"] for n in resp.json()["data"]["nodes"]]
+    assert "Alice 私密笔记" not in node_titles
+
+    # Bob 自己的笔记对自己可见
+    client.post(
+        "/api/notes", json={"title": "Bob 自己的", "content": "x", "tags": []}, headers=bob
+    )
+    resp = client.get("/api/notes/completion", params={"q": "Bob"}, headers=bob)
+    assert [i["title"] for i in resp.json()["data"]["items"]] == ["Bob 自己的"]
+
+
+def test_completion_and_graph_isolated_between_users(client, auth):
+    """越权回归：用户 B 的补全候选与图谱不得包含用户 A 的个人笔记"""
+    _create_note(client, auth, title="Alice 私密笔记", content="secret")
+
+    from tests.conftest import register_user
+    bob = register_user(client, "bob_iso_01")
+    resp = client.get("/api/notes/completion", params={"q": ""}, headers=bob)
+    titles = [item["title"] for item in resp.json()["data"]["items"]]
+    assert "Alice 私密笔记" not in titles
+
+    resp = client.get("/api/notes/graph", headers=bob)
+    node_titles = [n["title"] for n in resp.json()["data"]["nodes"]]
+    assert "Alice 私密笔记" not in node_titles
+
+    # Bob 自己的笔记对自己可见
+    client.post(
+        "/api/notes", json={"title": "Bob 自己的", "content": "x", "tags": []}, headers=bob
+    )
+    resp = client.get("/api/notes/completion", params={"q": "Bob"}, headers=bob)
+    assert [i["title"] for i in resp.json()["data"]["items"]] == ["Bob 自己的"]

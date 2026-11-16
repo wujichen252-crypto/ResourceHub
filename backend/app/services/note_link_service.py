@@ -11,7 +11,7 @@
 import json
 import re
 
-from sqlalchemy import delete, or_, select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.note import Note
@@ -338,7 +338,9 @@ async def get_completion_candidates(
 ) -> list[dict]:
     """链接补全候选：个人笔记 + 所在团队空间的笔记，带团队名标记"""
     team_ids = await _viewer_team_ids(db, user_id)
-    scope: list = [Note.user_id == user_id, Note.team_id.is_(None)]
+    # 注意：个人笔记必须 user_id 与 team_id 同时约束（AND），
+    # 否则 or_ 会把其他用户 team_id 为空的笔记全部泄露出去
+    scope: list = [and_(Note.user_id == user_id, Note.team_id.is_(None))]
     if team_ids:
         scope.append(Note.team_id.in_(team_ids))
 
@@ -372,7 +374,8 @@ async def get_completion_candidates(
 async def get_graph_data(db: AsyncSession, user_id: int) -> dict:
     """知识图谱数据：可见笔记为节点，note_links 为连线（两端均在可见范围内）"""
     team_ids = await _viewer_team_ids(db, user_id)
-    scope: list = [Note.user_id == user_id, Note.team_id.is_(None)]
+    # 同 completion：个人笔记用 AND 约束，防止 or_ 泄露其他用户的个人笔记
+    scope: list = [and_(Note.user_id == user_id, Note.team_id.is_(None))]
     if team_ids:
         scope.append(Note.team_id.in_(team_ids))
 
