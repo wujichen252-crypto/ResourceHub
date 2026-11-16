@@ -235,7 +235,7 @@ function syncQuery() {
   router.replace({ query })
 }
 
-/** 从 URL 还原筛选状态 */
+/** 从 URL 还原筛选状态；fav 缺失时显式清除收藏过滤，避免 store 状态跨页面残留 */
 function restoreFromQuery() {
   const q = route.query
   if (typeof q.q === 'string') { searchText.value = q.q; promptsStore.setSearch(q.q) }
@@ -244,7 +244,7 @@ function restoreFromQuery() {
     promptsStore.setCategory(Number(q.category))
   }
   if (typeof q.tag === 'string') { selectedTag.value = q.tag; promptsStore.setTag(q.tag) }
-  if (q.fav === '1') promptsStore.showFavoritesOnly = true
+  promptsStore.showFavoritesOnly = q.fav === '1'
 }
 
 onMounted(async () => {

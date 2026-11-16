@@ -16,7 +16,7 @@
 
     <div class="nav-label">工作区</div>
     <nav class="nav-links">
-      <RouterLink v-for="item in mainLinks" :key="item.path" class="nav-link" :to="item.path" :class="{ active: activeIndex === item.path }" :aria-current="activeIndex === item.path ? 'page' : undefined">
+      <RouterLink v-for="item in mainLinks" :key="item.path" class="nav-link" :to="item.path" :class="{ active: isLinkActive(item) }" :aria-current="isLinkActive(item) ? 'page' : undefined" @click="onMainLinkClick(item.path)">
         <el-icon><component :is="item.icon" /></el-icon><span>{{ item.label }}</span>
         <span v-if="item.path === '/prompts'" class="nav-accent">AI</span>
         <span v-if="item.path === '/ai' && identityStore.unreadCount > 0" class="nav-badge">{{ identityStore.unreadCount > 9 ? '9+' : identityStore.unreadCount }}</span>
@@ -25,7 +25,7 @@
 
     <div class="nav-label nav-label-lower">收藏与分类</div>
     <nav class="nav-links">
-      <RouterLink class="nav-link" to="/prompts" @click="openFavorites"><el-icon><Star /></el-icon><span>收藏提示词</span></RouterLink>
+      <RouterLink class="nav-link" :to="{ path: '/prompts', query: { fav: '1' } }" :class="{ active: favoritesActive }" :aria-current="favoritesActive ? 'page' : undefined"><el-icon><Star /></el-icon><span>收藏提示词</span></RouterLink>
     </nav>
 
     <div ref="footerRef" class="nav-footer">
@@ -52,8 +52,8 @@
     </div>
   </header>
   <div v-if="mobileOpen" class="mobile-menu">
-    <RouterLink v-for="item in mainLinks" :key="item.path" :to="item.path" @click="mobileOpen = false"><el-icon><component :is="item.icon" /></el-icon>{{ item.label }}<span v-if="item.path === '/ai' && identityStore.unreadCount > 0" class="nav-badge">{{ identityStore.unreadCount > 9 ? '9+' : identityStore.unreadCount }}</span></RouterLink>
-    <RouterLink to="/prompts" @click="openFavorites(); mobileOpen = false"><el-icon><Star /></el-icon>收藏提示词</RouterLink>
+    <RouterLink v-for="item in mainLinks" :key="item.path" :to="item.path" @click="onMainLinkClick(item.path); mobileOpen = false"><el-icon><component :is="item.icon" /></el-icon>{{ item.label }}<span v-if="item.path === '/ai' && identityStore.unreadCount > 0" class="nav-badge">{{ identityStore.unreadCount > 9 ? '9+' : identityStore.unreadCount }}</span></RouterLink>
+    <RouterLink :to="{ path: '/prompts', query: { fav: '1' } }" @click="mobileOpen = false"><el-icon><Star /></el-icon>收藏提示词</RouterLink>
     <RouterLink to="/settings" @click="mobileOpen = false"><el-icon><Setting /></el-icon>设置</RouterLink>
   </div>
 </template>
@@ -75,6 +75,21 @@ const { openSearch } = useGlobalSearch()
 const userMenuOpen = ref(false); const mobileOpen = ref(false); const footerRef = ref<HTMLElement | null>(null)
 const mainLinks = [{ path: '/dashboard', label: '工作台', icon: Monitor }, { path: '/roi', label: 'ROI 看板', icon: DataAnalysis }, { path: '/ai', label: 'AI 工作台', icon: Cpu }, { path: '/notes', label: '笔记库', icon: Document }, { path: '/prompts', label: '提示词库', icon: MagicStick }, { path: '/teams', label: '团队空间', icon: OfficeBuilding }, { path: '/plaza', label: '资源广场', icon: Grid }]
 const activeIndex = computed(() => route.path.startsWith('/ai') ? '/ai' : route.path.startsWith('/roi') ? '/roi' : route.path.startsWith('/notes') ? '/notes' : route.path.startsWith('/prompts') ? '/prompts' : route.path.startsWith('/teams') ? '/teams' : route.path.startsWith('/plaza') ? '/plaza' : route.path.startsWith('/settings') ? '/settings' : '/dashboard')
+// /prompts 路径下有两个入口（提示词库 / 收藏提示词），按收藏视图状态区分高亮，避免双亮
+const favoritesActive = computed(() => activeIndex.value === '/prompts' && promptsStore.showFavoritesOnly)
+const promptsActive = computed(() => activeIndex.value === '/prompts' && !promptsStore.showFavoritesOnly)
+
+function isLinkActive(item: { path: string }) {
+  return item.path === '/prompts' ? promptsActive.value : activeIndex.value === item.path
+}
+
+/** 点「提示词库」入口时清除收藏过滤残留，保证两个入口呈现不同视图 */
+function onMainLinkClick(path: string) {
+  if (path === '/prompts' && promptsStore.showFavoritesOnly) {
+    promptsStore.showFavoritesOnly = false
+    promptsStore.setPage(1)
+  }
+}
 const avatarText = computed(() => (authStore.user?.username || '用户').charAt(0).toUpperCase())
 
 /** 点击账户菜单外部或按 Esc 时收起弹层 */
@@ -87,10 +102,6 @@ function handleKeydown(event: KeyboardEvent) {
 onMounted(() => { document.addEventListener('click', handleDocumentClick); document.addEventListener('keydown', handleKeydown); void identityStore.loadStatus() })
 onUnmounted(() => { document.removeEventListener('click', handleDocumentClick); document.removeEventListener('keydown', handleKeydown) })
 
-function openFavorites() {
-  promptsStore.showFavoritesOnly = true
-  promptsStore.setPage(1)
-}
 function logout() { ElMessageBox.confirm('确定要退出登录吗？', '退出登录', { confirmButtonText: '退出', cancelButtonText: '取消', type: 'warning' }).then(() => { authStore.logout(); router.push('/login') }).catch(() => {}) }
 </script>
 
